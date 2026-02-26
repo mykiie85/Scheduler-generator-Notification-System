@@ -1,0 +1,188 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  VIEWER
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ShiftType {
+  MORNING
+  EVENING
+  NIGHT
+  OFF
+}
+
+enum StaffCategory {
+  DEGREE
+  DIPLOMA
+  CERTIFICATE
+  ATTENDANT
+}
+
+model User {
+  id             String         @id @default(uuid())
+  email          String         @unique
+  passwordHash   String         @map("password_hash")
+  fullName       String         @map("full_name")
+  role           Role           @default(VIEWER)
+  approvalStatus ApprovalStatus @default(PENDING) @map("approval_status")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Staff {
+  id              String        @id @default(uuid())
+  fileNo          String        @unique @map("file_no")
+  checkNo         String?       @map("check_no")
+  fullName        String        @map("full_name")
+  category        StaffCategory
+  primarySection  String        @map("primary_section")
+  phone           String?
+  email           String?
+  isActive        Boolean       @default(true) @map("is_active")
+  hireDate        DateTime?     @map("hire_date")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  constraints     StaffConstraint[]
+  annualLeaves    AnnualLeave[]
+  holidayShifts   HolidayShift[]
+
+  @@map("staff")
+}
+
+model StaffConstraint {
+  id        String    @id @default(uuid())
+  staffId   String    @map("staff_id")
+  month     Int
+  year      Int
+  maxNights Int       @default(8) @map("max_nights")
+  offDays   Int[]     @map("off_days")
+  preferred ShiftType @default(MORNING)
+  notes     String?
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  staff     Staff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@unique([staffId, month, year])
+  @@map("staff_constraints")
+}
+
+model AnnualLeave {
+  id        String   @id @default(uuid())
+  staffId   String   @map("staff_id")
+  startDate DateTime @map("start_date")
+  endDate   DateTime @map("end_date")
+  reason    String?
+  approved  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@map("annual_leave")
+}
+
+model Roster {
+  id        String   @id @default(uuid())
+  month     Int
+  year      Int
+  status    String   @default("draft")
+  data      Json
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([month, year])
+  @@map("rosters")
+}
+
+model WeeklyAllocation {
+  id        String   @id @default(uuid())
+  weekStart DateTime @map("week_start")
+  weekEnd   DateTime @map("week_end")
+  data      Json
+  createdBy String?  @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("weekly_allocations")
+}
+
+model HolidayShift {
+  id          String   @id @default(uuid())
+  date        DateTime
+  holidayName String   @map("holiday_name")
+  amStaffId   String?  @map("am_staff_id")
+  pmStaffId   String?  @map("pm_staff_id")
+  nightPull   Boolean  @default(true) @map("night_pull")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  amStaff     Staff?   @relation(fields: [amStaffId], references: [id])
+
+  @@map("holiday_shifts")
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  date        DateTime
+  notifyAll   Boolean  @default(false) @map("notify_all")
+  notifyIds   String[] @map("notify_ids")
+  createdBy   String?  @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("events")
+}
+
+model Announcement {
+  id          String    @id @default(uuid())
+  title       String
+  content     String
+  scheduledAt DateTime? @map("scheduled_at")
+  sentAt      DateTime? @map("sent_at")
+  createdBy   String?   @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("announcements")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  type      String
+  channel   String
+  recipient String
+  subject   String?
+  body      String
+  status    String   @default("pending")
+  sentAt    DateTime? @map("sent_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("notifications")
+}
+
+model SectionDuty {
+  id               String   @id @default(uuid())
+  sectionName      String   @unique @map("section_name")
+  duties           String[]
+  responsibilities String[]
+  minStaffPerShift Int      @default(1) @map("min_staff_per_shift")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@map("section_duties")
+}

@@ -1,0 +1,52 @@
+{
+  "name": "Scheduled Roster Check",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 8 * * *" }]
+        }
+      },
+      "name": "Daily 8AM Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// STUB: Check if roster exists for next month\n// If within 5 days of month end and no roster, send warning\n// If last day of month and no roster, auto-generate\nconst now = new Date();\nconst daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();\nconst daysLeft = daysInMonth - now.getDate();\n\nconst result = {\n  currentDate: now.toISOString(),\n  daysLeft: daysLeft,\n  shouldWarn: daysLeft <= 5,\n  shouldAutoGenerate: daysLeft === 0,\n  nextMonth: now.getMonth() + 2,\n  nextYear: now.getFullYear()\n};\n\nreturn [{ json: result }];"
+      },
+      "name": "Check Roster Status",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://api:3001/api/webhook/roster-check",
+        "method": "POST",
+        "jsonParameters": true,
+        "bodyParametersJson": "={{ JSON.stringify($json) }}"
+      },
+      "name": "Notify API (Stub)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [750, 300]
+    }
+  ],
+  "connections": {
+    "Daily 8AM Check": {
+      "main": [
+        [{ "node": "Check Roster Status", "type": "main", "index": 0 }]
+      ]
+    },
+    "Check Roster Status": {
+      "main": [
+        [{ "node": "Notify API (Stub)", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "2"
+}

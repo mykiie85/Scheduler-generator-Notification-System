@@ -1,0 +1,23 @@
+{
+  "name": "lab-scheduler",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AI-Powered Staff Scheduling System for ISO 15189 Medical Laboratory",
+  "scripts": {
+    "dev:api": "pnpm --filter @lab-scheduler/api dev",
+    "dev:web": "pnpm --filter @lab-scheduler/web dev",
+    "dev": "pnpm run --parallel dev:api dev:web",
+    "build:api": "pnpm --filter @lab-scheduler/api build",
+    "build:web": "pnpm --filter @lab-scheduler/web build",
+    "build": "pnpm run --parallel build:api build:web",
+    "db:generate": "pnpm --filter @lab-scheduler/api db:generate",
+    "db:migrate": "pnpm --filter @lab-scheduler/api db:migrate",
+    "db:seed": "pnpm --filter @lab-scheduler/api db:seed",
+    "lint": "eslint 'packages/*/src/**/*.{ts,tsx}'",
+    "format": "prettier --write 'packages/*/src/**/*.{ts,tsx,json,css}'"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "name": "Shift Reminder",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 * * * *" }]
+        }
+      },
+      "name": "Hourly Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// STUB: Check for shifts starting in 1 hour\n// In production, query the roster API for today's shifts\n// and send reminders to staff whose shifts start soon\nconst now = new Date();\nconst nextHour = now.getHours() + 1;\n\nlet shiftType = null;\nif (nextHour === 7) shiftType = 'MORNING';\nelse if (nextHour === 15) shiftType = 'EVENING';\nelse if (nextHour === 22) shiftType = 'NIGHT';\n\nif (!shiftType) {\n  return []; // No shift starting in next hour\n}\n\nreturn [{\n  json: {\n    message: `[STUB] Would send reminder for ${shiftType} shift starting at ${nextHour}:00`,\n    shiftType: shiftType,\n    reminderTime: now.toISOString()\n  }\n}];"
+      },
+      "name": "Check Next Shift",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://api:3001/api/webhook/broadcast",
+        "method": "POST",
+        "jsonParameters": true,
+        "bodyParametersJson": "={{ JSON.stringify({ type: 'shift-reminder', title: 'Shift Reminder', body: $json.message }) }}"
+      },
+      "name": "Send Reminder (Stub)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [750, 300]
+    }
+  ],
+  "connections": {
+    "Hourly Check": {
+      "main": [
+        [{ "node": "Check Next Shift", "type": "main", "index": 0 }]
+      ]
+    },
+    "Check Next Shift": {
+      "main": [
+        [{ "node": "Send Reminder (Stub)", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {},
+  "id": "3"
+}
