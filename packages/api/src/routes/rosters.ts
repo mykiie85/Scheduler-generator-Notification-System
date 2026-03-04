@@ -20,6 +20,7 @@ rosterRouter.post('/generate', async (req: Request, res: Response) => {
     const staff = await prisma.staff.findMany({
       where: { isActive: true },
       include: { constraints: { where: { month, year } }, annualLeaves: true },
+      orderBy: { fileNo: 'asc' },
     });
 
     const rosterData = generateRoster(staff, month, year);

@@ -27,9 +27,9 @@ enum ShiftType {
 }
 
 enum StaffCategory {
-  DEGREE
-  DIPLOMA
-  CERTIFICATE
+  LAB_SCIENTIST
+  LAB_TECHNOLOGIST
+  LAB_ATTENDANT
   ATTENDANT
 }
 
@@ -50,9 +50,15 @@ model Staff {
   id              String        @id @default(uuid())
   fileNo          String        @unique @map("file_no")
   checkNo         String?       @map("check_no")
+  shortCode       String        @unique @map("short_code")
+  staffFrpId      String?       @map("staff_frp_id")
   fullName        String        @map("full_name")
+  initials        String?
+  staffRole       String?       @map("staff_role")
+  staffTitle      String?       @map("staff_title")
   category        StaffCategory
   primarySection  String        @map("primary_section")
+  employmentType  String?       @default("Permanent") @map("employment_type")
   phone           String?
   email           String?
   isActive        Boolean       @default(true) @map("is_active")

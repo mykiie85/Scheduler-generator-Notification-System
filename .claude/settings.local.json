@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(curl:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash(timeout:*)",
+      "Bash(ping:*)",
+      "Bash(del \"C:\\\\Users\\\\mykii\\\\Projects\\\\lab-scheduler\\\\parse-xlsx.mjs\" \"C:\\\\Users\\\\mykii\\\\Projects\\\\lab-scheduler\\\\packages\\\\api\\\\parse-xlsx.ts\")",
+      "Bash(node -e \":*)",
+      "Bash(docker compose:*)",
+      "Bash(findstr:*)",
+      "Bash(docker restart:*)"
     ]
   }
 }

@@ -3,8 +3,11 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml* ./
-RUN pnpm install --frozen-lockfile || pnpm install
+COPY package.json ./
+RUN pnpm config set auto-install-peers true && \
+    pnpm install --no-frozen-lockfile && \
+    pnpm approve-builds esbuild 2>/dev/null; \
+    pnpm rebuild esbuild 2>/dev/null || true
 
 COPY . .
 

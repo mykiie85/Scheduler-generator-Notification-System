@@ -1,18 +1,25 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Button, HTMLSelect, Callout, Spinner, Tag } from '@blueprintjs/core';
-import { DataGrid, Column } from 'react-data-grid';
+import DataGrid from 'react-data-grid';
+import type { Column } from 'react-data-grid';
 import api from '../api/client';
 
-interface RosterEntry {
-  staffId: string;
-  staffName: string;
-  section: string;
-  category: string;
-  shifts: Record<string, string>;
+// ─── Types (transposed: days as rows, staff as columns) ───
+
+interface StaffInfo {
+  shortCode: string;
+  fullName: string;
+}
+
+interface DayRow {
+  date: number;
+  dayName: string;
+  shifts: Record<string, string>; // shortCode -> shift code
 }
 
 interface RosterData {
-  entries: RosterEntry[];
+  staffList: StaffInfo[];
+  days: DayRow[];
   meta: { month: number; year: number; daysInMonth: number; generatedAt: string };
 }
 
@@ -21,13 +28,13 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-const SHIFT_COLORS: Record<string, string> = {
-  M: '#e8f5e9',
-  E: '#fff3e0',
-  N: '#e3f2fd',
-  OFF: '#f5f5f5',
-  AL: '#ffebee',
-};
+function getShiftColor(shift: string): string {
+  if (shift.includes('EMD')) return '#ffff00'; // Yellow for EMD shifts (matches hospital format)
+  if (shift === 'A' || shift === 'U' || shift === 'L' || shift === 'E' || shift === 'V') return '#ffebee';
+  return 'transparent';
+}
+
+const SHIFT_CYCLE = ['OH', 'PM', 'N', 'SD', 'DO', 'OH+EMD', 'PM+EMD', 'N+EMD', 'OH+BIMA', 'OH+PM', 'A'];
 
 export default function RosterGenerator() {
   const now = new Date();
@@ -88,11 +95,10 @@ export default function RosterGenerator() {
     }
   };
 
-  const handleCellEdit = (rowIdx: number, colKey: string, value: string) => {
+  const handleCellEdit = (dayIdx: number, shortCode: string, value: string) => {
     if (!roster) return;
-    const updated = { ...roster };
-    const day = colKey.replace('d', '');
-    updated.entries[rowIdx].shifts[day] = value;
+    const updated = structuredClone(roster);
+    updated.days[dayIdx].shifts[shortCode] = value;
     setRoster(updated);
   };
 
@@ -106,41 +112,88 @@ export default function RosterGenerator() {
     }
   };
 
-  const daysInMonth = new Date(year, month, 0).getDate();
+  // Build columns: DATE (frozen), DAY (frozen), then one column per staff shortcode
+  const columns: Column<DayRow>[] = useMemo(() => {
+    if (!roster) return [];
 
-  const columns: Column<RosterEntry>[] = useMemo(() => {
-    const cols: Column<RosterEntry>[] = [
-      { key: 'num', name: '#', width: 40, frozen: true, renderCell: ({ rowIdx }) => rowIdx + 1 },
-      { key: 'staffName', name: 'Staff', width: 180, frozen: true },
-      { key: 'section', name: 'Section', width: 110 },
+    const cols: Column<DayRow>[] = [
+      {
+        key: 'date',
+        name: 'DATE',
+        width: 32,
+        frozen: true,
+        renderCell: ({ row }) => (
+          <div style={{
+            textAlign: 'center',
+            fontWeight: 700,
+            fontSize: 9,
+            width: '100%',
+            lineHeight: '22px',
+            background: row.dayName === 'Sat' || row.dayName === 'Sun' ? '#eef2f7' : 'transparent',
+          }}>
+            {row.date}
+          </div>
+        ),
+      },
+      {
+        key: 'dayName',
+        name: 'DAY',
+        width: 32,
+        frozen: true,
+        renderCell: ({ row }) => (
+          <div style={{
+            textAlign: 'center',
+            fontWeight: 600,
+            fontSize: 9,
+            width: '100%',
+            lineHeight: '22px',
+            background: row.dayName === 'Sat' || row.dayName === 'Sun' ? '#eef2f7' : 'transparent',
+            color: row.dayName === 'Sun' ? '#d32f2f' : row.dayName === 'Sat' ? '#1565c0' : '#333',
+          }}>
+            {row.dayName}
+          </div>
+        ),
+      },
     ];
-    for (let d = 1; d <= daysInMonth; d++) {
-      const date = new Date(year, month - 1, d);
-      const dayName = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][date.getDay()];
+
+    for (const staff of roster.staffList) {
       cols.push({
-        key: `d${d}`,
-        name: `${d}\n${dayName}`,
-        width: 48,
+        key: staff.shortCode,
+        name: staff.shortCode,
+        width: Math.max(staff.shortCode.length * 6 + 4, 38),
+        renderHeaderCell: () => (
+          <div title={staff.fullName} style={{
+            textAlign: 'center',
+            fontSize: 8,
+            fontWeight: 700,
+            cursor: 'default',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}>
+            {staff.shortCode}
+          </div>
+        ),
         renderCell: ({ row, rowIdx }) => {
-          const shift = row.shifts[String(d)] || '';
+          const shift = row.shifts[staff.shortCode] || '';
           return (
             <div
               style={{
-                background: SHIFT_COLORS[shift] || 'transparent',
+                background: getShiftColor(shift),
                 textAlign: 'center',
                 fontWeight: 600,
-                fontSize: 12,
-                padding: '2px 0',
+                fontSize: shift.length > 4 ? 7 : 8,
                 cursor: 'pointer',
                 width: '100%',
                 height: '100%',
-                lineHeight: '30px',
+                lineHeight: '22px',
+                whiteSpace: 'nowrap',
               }}
+              title={`${staff.fullName} - ${shift}`}
               onClick={() => {
-                const options = ['M', 'E', 'N', 'OFF', 'AL'];
-                const idx = options.indexOf(shift);
-                const next = options[(idx + 1) % options.length];
-                handleCellEdit(rowIdx, `d${d}`, next);
+                const idx = SHIFT_CYCLE.indexOf(shift);
+                const next = SHIFT_CYCLE[(idx + 1) % SHIFT_CYCLE.length];
+                handleCellEdit(rowIdx, staff.shortCode, next);
               }}
             >
               {shift}
@@ -149,8 +202,9 @@ export default function RosterGenerator() {
         },
       });
     }
+
     return cols;
-  }, [daysInMonth, roster]);
+  }, [roster]);
 
   return (
     <div>
@@ -186,12 +240,14 @@ export default function RosterGenerator() {
 
       {loading && <Spinner />}
 
-      {roster && roster.entries?.length > 0 && (
-        <div className="roster-grid" style={{ height: Math.min(roster.entries.length * 35 + 60, 700) }}>
+      {roster && roster.days?.length > 0 && (
+        <div className="roster-grid" style={{ height: Math.min(roster.days.length * 24 + 40, 800) }}>
           <DataGrid
             columns={columns}
-            rows={roster.entries}
-            style={{ height: '100%' }}
+            rows={roster.days}
+            rowHeight={24}
+            headerRowHeight={26}
+            style={{ height: '100%', fontSize: 9 }}
           />
         </div>
       )}
@@ -202,8 +258,8 @@ export default function RosterGenerator() {
         </Callout>
       )}
 
-      <div style={{ marginTop: 12, fontSize: 12, color: '#888' }}>
-        Click on a shift cell to cycle: M (Morning) → E (Evening) → N (Night) → OFF → AL (Annual Leave)
+      <div style={{ marginTop: 12, fontSize: 12, color: '#888', lineHeight: 1.6 }}>
+        Click on a shift cell to cycle: OH → PM → N → SD → DO → OH+EMD → PM+EMD → N+EMD → OH+BIMA → OH+PM → A
       </div>
     </div>
   );

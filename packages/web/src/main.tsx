@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import 'normalize.css';
 import '@blueprintjs/core/lib/css/blueprint.css';
 import '@blueprintjs/icons/lib/css/blueprint-icons.css';
+import 'react-data-grid/lib/styles.css';
 import './styles.css';
 import App from './App';
 
