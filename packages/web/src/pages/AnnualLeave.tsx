@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Button,
+  ButtonGroup,
   HTMLTable,
   HTMLSelect,
   FormGroup,
@@ -34,6 +35,8 @@ export default function AnnualLeave() {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({
     staffId: '',
     startDate: '',
@@ -59,16 +62,48 @@ export default function AnnualLeave() {
 
   useEffect(() => { fetchData(); }, []);
 
+  const openCreate = () => {
+    setEditId(null);
+    setForm({ staffId: staff[0]?.id || '', startDate: '', endDate: '', reason: '', approved: false });
+    setDialogOpen(true);
+  };
+
+  const openEdit = (l: Leave) => {
+    setEditId(l.id);
+    setForm({
+      staffId: l.staffId,
+      startDate: l.startDate.split('T')[0],
+      endDate: l.endDate.split('T')[0],
+      reason: l.reason || '',
+      approved: l.approved,
+    });
+    setDialogOpen(true);
+  };
+
   const handleSave = async () => {
+    if (!form.staffId || !form.startDate || !form.endDate) {
+      setError('Staff, start date, and end date are required');
+      return;
+    }
     try {
-      await api.post('/leave', {
+      const payload = {
         staffId: form.staffId,
         startDate: new Date(form.startDate).toISOString(),
         endDate: new Date(form.endDate).toISOString(),
         reason: form.reason || undefined,
         approved: form.approved,
-      });
+      };
+
+      if (editId) {
+        await api.put(`/leave/${editId}`, payload);
+        setSuccess('Leave record updated');
+      } else {
+        await api.post('/leave', payload);
+        setSuccess('Leave record created');
+      }
+
       setDialogOpen(false);
+      setError('');
       fetchData();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Save failed');
@@ -78,6 +113,8 @@ export default function AnnualLeave() {
   const handleApprove = async (id: string) => {
     try {
       await api.put(`/leave/${id}`, { approved: true });
+      setSuccess('Leave approved');
+      setError('');
       fetchData();
     } catch {
       setError('Approve failed');
@@ -88,6 +125,8 @@ export default function AnnualLeave() {
     if (!confirm('Delete this leave record?')) return;
     try {
       await api.delete(`/leave/${id}`);
+      setSuccess('Leave record deleted');
+      setError('');
       fetchData();
     } catch {
       setError('Delete failed');
@@ -103,16 +142,14 @@ export default function AnnualLeave() {
         <p>{leaves.length} leave records for 2026</p>
       </div>
 
-      {error && <Callout intent="danger" style={{ marginBottom: 12 }}>{error}</Callout>}
+      {error && <Callout intent="danger" style={{ marginBottom: 12 }} icon="error">{error}</Callout>}
+      {success && <Callout intent="success" style={{ marginBottom: 12 }} icon="tick">{success}</Callout>}
 
       <Button
         intent="primary"
         icon="add"
         text="Add Leave"
-        onClick={() => {
-          setForm({ staffId: staff[0]?.id || '', startDate: '', endDate: '', reason: '', approved: false });
-          setDialogOpen(true);
-        }}
+        onClick={openCreate}
         style={{ marginBottom: 16 }}
       />
 
@@ -143,18 +180,33 @@ export default function AnnualLeave() {
                   </Tag>
                 </td>
                 <td>
-                  {!l.approved && (
-                    <Button minimal small icon="tick" intent="success" onClick={() => handleApprove(l.id)} />
-                  )}
-                  <Button minimal small icon="trash" intent="danger" onClick={() => handleDelete(l.id)} />
+                  <ButtonGroup minimal>
+                    <Button small icon="edit" title="Edit" onClick={() => openEdit(l)} />
+                    {!l.approved && (
+                      <Button small icon="tick" intent="success" title="Approve" onClick={() => handleApprove(l.id)} />
+                    )}
+                    <Button small icon="trash" intent="danger" title="Delete" onClick={() => handleDelete(l.id)} />
+                  </ButtonGroup>
                 </td>
               </tr>
             ))}
+            {leaves.length === 0 && (
+              <tr>
+                <td colSpan={7} style={{ textAlign: 'center', color: '#888' }}>
+                  No leave records yet
+                </td>
+              </tr>
+            )}
           </tbody>
         </HTMLTable>
       </div>
 
-      <Dialog isOpen={dialogOpen} onClose={() => setDialogOpen(false)} title="Add Leave" style={{ width: 500 }}>
+      <Dialog
+        isOpen={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        title={editId ? 'Edit Leave' : 'Add Leave'}
+        style={{ width: 500 }}
+      >
         <div style={{ padding: 20 }}>
           <FormGroup label="Staff Member">
             <HTMLSelect value={form.staffId} onChange={(e) => setForm({ ...form, staffId: e.target.value })} fill>
@@ -172,7 +224,12 @@ export default function AnnualLeave() {
           </FormGroup>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
             <Button text="Cancel" onClick={() => setDialogOpen(false)} />
-            <Button intent="primary" text="Save" onClick={handleSave} />
+            <Button
+              intent="primary"
+              icon={editId ? 'floppy-disk' : 'add'}
+              text={editId ? 'Update' : 'Save'}
+              onClick={handleSave}
+            />
           </div>
         </div>
       </Dialog>

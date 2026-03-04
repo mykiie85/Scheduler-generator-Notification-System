@@ -9,7 +9,11 @@
       "Bash(node -e \":*)",
       "Bash(docker compose:*)",
       "Bash(findstr:*)",
-      "Bash(docker restart:*)"
+      "Bash(docker restart:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx vite build)",
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(npx prisma db push:*)"
     ]
   }
 }

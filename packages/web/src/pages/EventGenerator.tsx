@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Button,
+  ButtonGroup,
   HTMLTable,
   InputGroup,
   FormGroup,
@@ -26,6 +27,7 @@ interface Event {
 interface Staff {
   id: string;
   fullName: string;
+  phone: string | null;
 }
 
 export default function EventGenerator() {
@@ -35,6 +37,7 @@ export default function EventGenerator() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -60,17 +63,48 @@ export default function EventGenerator() {
 
   useEffect(() => { fetchData(); }, []);
 
+  const openCreate = () => {
+    setEditId(null);
+    setForm({ title: '', description: '', date: '', notifyAll: true, notifyIds: [] });
+    setDialogOpen(true);
+  };
+
+  const openEdit = (e: Event) => {
+    setEditId(e.id);
+    setForm({
+      title: e.title,
+      description: e.description || '',
+      date: e.date.split('T')[0],
+      notifyAll: e.notifyAll,
+      notifyIds: e.notifyIds || [],
+    });
+    setDialogOpen(true);
+  };
+
   const handleSave = async () => {
+    if (!form.title || !form.date) {
+      setError('Title and date are required');
+      return;
+    }
     try {
-      await api.post('/events', {
+      const payload = {
         ...form,
         date: new Date(form.date).toISOString(),
-      });
+      };
+
+      if (editId) {
+        await api.put(`/events/${editId}`, payload);
+        setSuccess('Event updated');
+      } else {
+        await api.post('/events', payload);
+        setSuccess('Event created');
+      }
+
       setDialogOpen(false);
-      setSuccess('Event created and notifications sent (stub)');
+      setError('');
       fetchData();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Failed to create event');
+      setError(err.response?.data?.error || 'Failed to save event');
     }
   };
 
@@ -78,9 +112,43 @@ export default function EventGenerator() {
     if (!confirm('Delete this event?')) return;
     try {
       await api.delete(`/events/${id}`);
+      setSuccess('Event deleted');
+      setError('');
       fetchData();
     } catch {
       setError('Delete failed');
+    }
+  };
+
+  const handleNotify = async (event: Event) => {
+    const webhookUrl = import.meta.env.VITE_N8N_EVENT_WEBHOOK_URL;
+    if (!webhookUrl) {
+      setError('Event webhook URL not configured');
+      return;
+    }
+
+    const targetStaff = event.notifyAll
+      ? staff
+      : staff.filter((s) => event.notifyIds.includes(s.id));
+
+    try {
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventTitle: event.title,
+          eventDescription: event.description,
+          eventDate: event.date,
+          staff: targetStaff.map((s) => ({
+            fullName: s.fullName,
+            phone: s.phone,
+          })),
+        }),
+      });
+      setSuccess(`Notifications sent for "${event.title}"`);
+      setError('');
+    } catch {
+      setError('Failed to send notifications');
     }
   };
 
@@ -93,17 +161,14 @@ export default function EventGenerator() {
         <p>Create events and notify staff</p>
       </div>
 
-      {error && <Callout intent="danger" style={{ marginBottom: 12 }}>{error}</Callout>}
-      {success && <Callout intent="success" style={{ marginBottom: 12 }}>{success}</Callout>}
+      {error && <Callout intent="danger" style={{ marginBottom: 12 }} icon="error">{error}</Callout>}
+      {success && <Callout intent="success" style={{ marginBottom: 12 }} icon="tick">{success}</Callout>}
 
       <Button
         intent="primary"
         icon="add"
         text="Create Event"
-        onClick={() => {
-          setForm({ title: '', description: '', date: '', notifyAll: true, notifyIds: [] });
-          setDialogOpen(true);
-        }}
+        onClick={openCreate}
         style={{ marginBottom: 16 }}
       />
 
@@ -126,15 +191,31 @@ export default function EventGenerator() {
                 <td>{e.description || '-'}</td>
                 <td><Tag minimal>{e.notifyAll ? 'All Staff' : `${e.notifyIds.length} staff`}</Tag></td>
                 <td>
-                  <Button minimal small icon="trash" intent="danger" onClick={() => handleDelete(e.id)} />
+                  <ButtonGroup minimal>
+                    <Button small icon="edit" title="Edit" onClick={() => openEdit(e)} />
+                    <Button small icon="notifications" intent="success" title="Notify Staff" onClick={() => handleNotify(e)} />
+                    <Button small icon="trash" intent="danger" title="Delete" onClick={() => handleDelete(e.id)} />
+                  </ButtonGroup>
                 </td>
               </tr>
             ))}
+            {events.length === 0 && (
+              <tr>
+                <td colSpan={5} style={{ textAlign: 'center', color: '#888' }}>
+                  No events yet
+                </td>
+              </tr>
+            )}
           </tbody>
         </HTMLTable>
       </div>
 
-      <Dialog isOpen={dialogOpen} onClose={() => setDialogOpen(false)} title="Create Event" style={{ width: 500 }}>
+      <Dialog
+        isOpen={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        title={editId ? 'Edit Event' : 'Create Event'}
+        style={{ width: 500 }}
+      >
         <div style={{ padding: 20 }}>
           <FormGroup label="Title">
             <InputGroup value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Event title" />
@@ -175,7 +256,12 @@ export default function EventGenerator() {
           )}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
             <Button text="Cancel" onClick={() => setDialogOpen(false)} />
-            <Button intent="primary" text="Create & Notify" onClick={handleSave} />
+            <Button
+              intent="primary"
+              icon={editId ? 'floppy-disk' : 'add'}
+              text={editId ? 'Update' : 'Create'}
+              onClick={handleSave}
+            />
           </div>
         </div>
       </Dialog>

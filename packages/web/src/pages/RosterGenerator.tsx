@@ -45,6 +45,7 @@ export default function RosterGenerator() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('');
+  const [notifying, setNotifying] = useState(false);
 
   const fetchRoster = async () => {
     setLoading(true);
@@ -109,6 +110,51 @@ export default function RosterGenerator() {
       setStatus('final');
     } catch {
       setError('Save failed');
+    }
+  };
+
+  const handleNotify = async () => {
+    if (!roster) return;
+    setNotifying(true);
+    setError('');
+    try {
+      const monthName = MONTHS[month - 1];
+
+      // Build a text summary of the roster for WhatsApp
+      const lines: string[] = [];
+      lines.push(`*${monthName} ${year} DUTY ROSTER*`);
+      lines.push('');
+
+      // Header row: DATE | DAY | staff shortcodes
+      const codes = roster.staffList.map((s) => s.shortCode);
+      lines.push(`DATE | DAY | ${codes.join(' | ')}`);
+      lines.push('---');
+
+      for (const day of roster.days) {
+        const shifts = codes.map((sc) => day.shifts[sc] || '-');
+        lines.push(`${day.date} | ${day.dayName} | ${shifts.join(' | ')}`);
+      }
+
+      const payload = {
+        month,
+        year,
+        monthName,
+        staffList: roster.staffList,
+        rosterText: lines.join('\n'),
+        roster: roster,
+      };
+
+      await fetch('http://localhost:5678/webhook-test/af0ee9b9-2a36-4bb2-aed6-d0483f466e62', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      alert('Roster sent to WhatsApp notification workflow!');
+    } catch {
+      setError('Failed to send notification. Make sure n8n is running.');
+    } finally {
+      setNotifying(false);
     }
   };
 
@@ -233,6 +279,13 @@ export default function RosterGenerator() {
           <>
             <Button icon="floppy-disk" text="Save as Final" onClick={handleSave} />
             <Button icon="export" text="Export XLSX" onClick={handleExport} />
+            <Button
+              intent="success"
+              icon="send-message"
+              text="Notify Staff"
+              loading={notifying}
+              onClick={handleNotify}
+            />
             {status && <Tag intent={status === 'final' ? 'success' : 'warning'}>{status}</Tag>}
           </>
         )}

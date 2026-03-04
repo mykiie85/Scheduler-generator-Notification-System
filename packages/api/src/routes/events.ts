@@ -78,6 +78,28 @@ eventRouter.get('/', async (_req: Request, res: Response) => {
   }
 });
 
+// Update event
+eventRouter.put('/:id', async (req: Request, res: Response) => {
+  try {
+    const data = eventSchema.partial().parse(req.body);
+    const event = await prisma.event.update({
+      where: { id: req.params.id },
+      data: {
+        ...data,
+        date: data.date ? new Date(data.date) : undefined,
+      },
+    });
+    res.json(event);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.errors });
+      return;
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update event' });
+  }
+});
+
 // Delete event
 eventRouter.delete('/:id', async (req: Request, res: Response) => {
   try {

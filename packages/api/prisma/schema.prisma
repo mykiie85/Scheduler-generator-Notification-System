@@ -136,6 +136,7 @@ model HolidayShift {
   amStaffId   String?  @map("am_staff_id")
   pmStaffId   String?  @map("pm_staff_id")
   nightPull   Boolean  @default(true) @map("night_pull")
+  data        Json?
   createdAt   DateTime @default(now()) @map("created_at")
 
   amStaff     Staff?   @relation(fields: [amStaffId], references: [id])

@@ -49,6 +49,28 @@ announcementRouter.get('/', async (_req: Request, res: Response) => {
   }
 });
 
+// Update announcement
+announcementRouter.put('/:id', async (req: Request, res: Response) => {
+  try {
+    const data = schema.partial().parse(req.body);
+    const announcement = await prisma.announcement.update({
+      where: { id: req.params.id },
+      data: {
+        ...data,
+        scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
+      },
+    });
+    res.json(announcement);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ error: err.errors });
+      return;
+    }
+    console.error(err);
+    res.status(500).json({ error: 'Failed to update announcement' });
+  }
+});
+
 // Delete announcement
 announcementRouter.delete('/:id', async (req: Request, res: Response) => {
   try {

@@ -1,47 +1,139 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Button,
   HTMLTable,
   InputGroup,
   FormGroup,
-  HTMLSelect,
   Callout,
-  Dialog,
-  Switch,
   Spinner,
+  Tag,
+  Popover,
+  Checkbox,
+  ButtonGroup,
 } from '@blueprintjs/core';
 import api from '../api/client';
+
+// --- Types ---
+
+interface Staff {
+  id: string;
+  fullName: string;
+  phone: string | null;
+  primarySection: string;
+}
+
+interface HolidayData {
+  mainLabAm: string[];
+  mainLabPm: string[];
+  emdLabAm: string[];
+  emdLabPm: string[];
+  bimaLabAm: string[];
+}
 
 interface HolidayShift {
   id: string;
   date: string;
   holidayName: string;
-  amStaffId: string | null;
-  pmStaffId: string | null;
-  nightPull: boolean;
-  amStaff?: { fullName: string } | null;
+  data: HolidayData | null;
 }
 
-interface Staff {
-  id: string;
-  fullName: string;
+const EMPTY_DATA: HolidayData = {
+  mainLabAm: [],
+  mainLabPm: [],
+  emdLabAm: [],
+  emdLabPm: [],
+  bimaLabAm: [],
+};
+
+const SLOT_CONFIG: { key: keyof HolidayData; lab: string; shift: string }[] = [
+  { key: 'mainLabAm', lab: 'Main Lab', shift: 'AM' },
+  { key: 'mainLabPm', lab: 'Main Lab', shift: 'PM' },
+  { key: 'emdLabAm', lab: 'EMD Lab', shift: 'AM' },
+  { key: 'emdLabPm', lab: 'EMD Lab', shift: 'PM' },
+  { key: 'bimaLabAm', lab: 'BIMA Lab', shift: 'AM' },
+];
+
+// --- Multi-select component ---
+
+function StaffMultiSelect({
+  label,
+  staffList,
+  selected,
+  onChange,
+}: {
+  label: string;
+  staffList: Staff[];
+  selected: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const toggle = (id: string) => {
+    onChange(
+      selected.includes(id)
+        ? selected.filter((s) => s !== id)
+        : [...selected, id],
+    );
+  };
+
+  return (
+    <FormGroup label={label} style={{ marginBottom: 12 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 6, minHeight: 28 }}>
+        {selected.map((id) => {
+          const s = staffList.find((st) => st.id === id);
+          return (
+            <Tag
+              key={id}
+              intent="primary"
+              onRemove={() => toggle(id)}
+              minimal
+            >
+              {s?.fullName ?? id}
+            </Tag>
+          );
+        })}
+        {selected.length === 0 && (
+          <span style={{ color: '#999', fontSize: 13, lineHeight: '28px' }}>None selected</span>
+        )}
+      </div>
+      <Popover
+        content={
+          <div style={{ padding: 10, maxHeight: 250, overflowY: 'auto', minWidth: 220 }}>
+            {staffList.map((s) => (
+              <Checkbox
+                key={s.id}
+                label={s.fullName}
+                checked={selected.includes(s.id)}
+                onChange={() => toggle(s.id)}
+                style={{ marginBottom: 4 }}
+              />
+            ))}
+          </div>
+        }
+        placement="bottom-start"
+        minimal
+      >
+        <Button small text="Select staff..." icon="person" />
+      </Popover>
+    </FormGroup>
+  );
 }
+
+// --- Main component ---
 
 export default function HolidayScheduler() {
   const [shifts, setShifts] = useState<HolidayShift[]>([]);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [form, setForm] = useState({
-    date: '',
-    holidayName: '',
-    amStaffId: '',
-    pmStaffId: '',
-    nightPull: true,
-  });
+  const [success, setSuccess] = useState('');
 
-  const fetchData = async () => {
+  // Form state
+  const [editId, setEditId] = useState<string | null>(null);
+  const [date, setDate] = useState('');
+  const [holidayName, setHolidayName] = useState('');
+  const [data, setData] = useState<HolidayData>({ ...EMPTY_DATA });
+
+  const fetchData = useCallback(async () => {
     try {
       const [shiftsRes, staffRes] = await Promise.all([
         api.get('/holidays?year=2026'),
@@ -54,22 +146,53 @@ export default function HolidayScheduler() {
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const resetForm = () => {
+    setEditId(null);
+    setDate('');
+    setHolidayName('');
+    setData({ ...EMPTY_DATA });
   };
 
-  useEffect(() => { fetchData(); }, []);
+  const loadShift = (shift: HolidayShift) => {
+    setEditId(shift.id);
+    setDate(shift.date.split('T')[0]);
+    setHolidayName(shift.holidayName);
+    setData(shift.data ? { ...EMPTY_DATA, ...shift.data } : { ...EMPTY_DATA });
+    setError('');
+    setSuccess('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleSave = async () => {
+    if (!date || !holidayName) {
+      setError('Date and holiday name are required');
+      return;
+    }
+    setSaving(true);
+    setError('');
     try {
-      await api.post('/holidays', {
-        ...form,
-        date: new Date(form.date).toISOString(),
-        amStaffId: form.amStaffId || undefined,
-        pmStaffId: form.pmStaffId || undefined,
-      });
-      setDialogOpen(false);
+      const payload = {
+        date: new Date(date).toISOString(),
+        holidayName,
+        data,
+      };
+      if (editId) {
+        await api.put(`/holidays/${editId}`, payload);
+        setSuccess('Holiday shift updated');
+      } else {
+        await api.post('/holidays', payload);
+        setSuccess('Holiday shift created');
+      }
+      resetForm();
       fetchData();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Save failed');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -77,11 +200,76 @@ export default function HolidayScheduler() {
     if (!confirm('Delete this holiday shift?')) return;
     try {
       await api.delete(`/holidays/${id}`);
+      if (editId === id) resetForm();
+      setSuccess('Holiday shift deleted');
       fetchData();
     } catch {
       setError('Delete failed');
     }
   };
+
+  const handleExport = async (id: string) => {
+    try {
+      const res = await api.get(`/holidays/${id}/export`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `holiday-shift.docx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch {
+      setError('Export failed');
+    }
+  };
+
+  const handleNotify = async () => {
+    const webhookUrl = import.meta.env.VITE_N8N_HOLIDAY_WEBHOOK_URL;
+    if (!webhookUrl) {
+      setError('Webhook URL not configured');
+      return;
+    }
+    if (!date || !holidayName) {
+      setError('Save the holiday first before notifying');
+      return;
+    }
+
+    const staffPayload: { fullName: string; phone: string | null; lab: string; shift: string }[] = [];
+    for (const slot of SLOT_CONFIG) {
+      for (const staffId of data[slot.key]) {
+        const s = staff.find((st) => st.id === staffId);
+        if (s) {
+          staffPayload.push({
+            fullName: s.fullName,
+            phone: s.phone,
+            lab: slot.lab,
+            shift: slot.shift,
+          });
+        }
+      }
+    }
+
+    try {
+      await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          holidayName,
+          holidayDate: date,
+          staff: staffPayload,
+        }),
+      });
+      setSuccess('Staff notified successfully');
+    } catch {
+      setError('Failed to send notification');
+    }
+  };
+
+  const updateSlot = (key: keyof HolidayData, ids: string[]) => {
+    setData((prev) => ({ ...prev, [key]: ids }));
+  };
+
+  const resolveNames = (ids: string[]) =>
+    ids.map((id) => staff.find((s) => s.id === id)?.fullName ?? '?').join(', ');
 
   if (loading) return <Spinner />;
 
@@ -89,85 +277,163 @@ export default function HolidayScheduler() {
     <div>
       <div className="page-header">
         <h2>Holiday Shift Scheduler</h2>
-        <p>Manage public holiday duty assignments</p>
+        <p>Assign staff to public holiday duty across labs</p>
       </div>
 
-      {error && <Callout intent="danger" style={{ marginBottom: 12 }}>{error}</Callout>}
+      {error && (
+        <Callout intent="danger" style={{ marginBottom: 12 }} icon="error">
+          {error}
+        </Callout>
+      )}
+      {success && (
+        <Callout intent="success" style={{ marginBottom: 12 }} icon="tick">
+          {success}
+        </Callout>
+      )}
 
-      <Button
-        intent="primary"
-        icon="add"
-        text="Add Holiday Shift"
-        onClick={() => {
-          setForm({ date: '', holidayName: '', amStaffId: '', pmStaffId: '', nightPull: true });
-          setDialogOpen(true);
+      {/* Form */}
+      <div
+        style={{
+          background: '#fff',
+          borderRadius: 8,
+          padding: 20,
+          marginBottom: 24,
+          border: '1px solid #dce4ef',
         }}
-        style={{ marginBottom: 16 }}
-      />
+      >
+        <h3 style={{ margin: '0 0 16px', color: '#0f3c68' }}>
+          {editId ? 'Edit Holiday Shift' : 'New Holiday Shift'}
+        </h3>
 
+        <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+          <FormGroup label="Date" style={{ flex: 1, minWidth: 180 }}>
+            <InputGroup
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
+          </FormGroup>
+          <FormGroup label="Holiday Name" style={{ flex: 2, minWidth: 220 }}>
+            <InputGroup
+              value={holidayName}
+              onChange={(e) => setHolidayName(e.target.value)}
+              placeholder="e.g., Union Day"
+            />
+          </FormGroup>
+        </div>
+
+        {/* AM Shift */}
+        <h4 style={{ color: '#1968b3', marginBottom: 8, borderBottom: '1px solid #dce4ef', paddingBottom: 4 }}>
+          AM Shift
+        </h4>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 16 }}>
+          <StaffMultiSelect label="Main Lab" staffList={staff} selected={data.mainLabAm} onChange={(ids) => updateSlot('mainLabAm', ids)} />
+          <StaffMultiSelect label="EMD Lab" staffList={staff} selected={data.emdLabAm} onChange={(ids) => updateSlot('emdLabAm', ids)} />
+          <StaffMultiSelect label="BIMA Lab" staffList={staff} selected={data.bimaLabAm} onChange={(ids) => updateSlot('bimaLabAm', ids)} />
+        </div>
+
+        {/* PM Shift */}
+        <h4 style={{ color: '#1968b3', marginBottom: 8, borderBottom: '1px solid #dce4ef', paddingBottom: 4 }}>
+          PM Shift
+        </h4>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12, marginBottom: 16 }}>
+          <StaffMultiSelect label="Main Lab" staffList={staff} selected={data.mainLabPm} onChange={(ids) => updateSlot('mainLabPm', ids)} />
+          <StaffMultiSelect label="EMD Lab" staffList={staff} selected={data.emdLabPm} onChange={(ids) => updateSlot('emdLabPm', ids)} />
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Button
+            intent="primary"
+            icon={editId ? 'floppy-disk' : 'add'}
+            text={editId ? 'Update' : 'Save'}
+            onClick={handleSave}
+            loading={saving}
+          />
+          {editId && (
+            <>
+              <Button
+                icon="document"
+                text="Export DOCX"
+                onClick={() => handleExport(editId)}
+              />
+              <Button
+                intent="success"
+                icon="notifications"
+                text="Notify Staff"
+                onClick={handleNotify}
+              />
+              <Button
+                minimal
+                text="Cancel Edit"
+                onClick={resetForm}
+              />
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Saved holidays table */}
       <div className="staff-table-container">
         <HTMLTable striped compact style={{ width: '100%' }}>
           <thead>
             <tr>
               <th>Date</th>
               <th>Holiday</th>
-              <th>AM Staff</th>
-              <th>PM Staff</th>
-              <th>Night Pull</th>
+              <th>Main Lab AM</th>
+              <th>Main Lab PM</th>
+              <th>EMD Lab AM</th>
+              <th>EMD Lab PM</th>
+              <th>BIMA Lab AM</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {shifts.map((s) => (
-              <tr key={s.id}>
-                <td>{new Date(s.date).toLocaleDateString('en-GB')}</td>
-                <td>{s.holidayName}</td>
-                <td>{s.amStaff?.fullName || '-'}</td>
-                <td>{staff.find((st) => st.id === s.pmStaffId)?.fullName || '-'}</td>
-                <td>{s.nightPull ? 'Yes' : 'No'}</td>
-                <td>
-                  <Button minimal small icon="trash" intent="danger" onClick={() => handleDelete(s.id)} />
+            {shifts.map((s) => {
+              const d = s.data ?? EMPTY_DATA;
+              return (
+                <tr
+                  key={s.id}
+                  onClick={() => loadShift(s)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <td>{new Date(s.date).toLocaleDateString('en-GB')}</td>
+                  <td>{s.holidayName}</td>
+                  <td>{resolveNames(d.mainLabAm)}</td>
+                  <td>{resolveNames(d.mainLabPm)}</td>
+                  <td>{resolveNames(d.emdLabAm)}</td>
+                  <td>{resolveNames(d.emdLabPm)}</td>
+                  <td>{resolveNames(d.bimaLabAm)}</td>
+                  <td>
+                    <ButtonGroup minimal>
+                      <Button
+                        small
+                        icon="document"
+                        title="Export DOCX"
+                        onClick={(e) => { e.stopPropagation(); handleExport(s.id); }}
+                      />
+                      <Button
+                        small
+                        icon="trash"
+                        intent="danger"
+                        title="Delete"
+                        onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }}
+                      />
+                    </ButtonGroup>
+                  </td>
+                </tr>
+              );
+            })}
+            {shifts.length === 0 && (
+              <tr>
+                <td colSpan={8} style={{ textAlign: 'center', color: '#888' }}>
+                  No holiday shifts scheduled
                 </td>
               </tr>
-            ))}
-            {shifts.length === 0 && (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: '#888' }}>No holiday shifts scheduled</td></tr>
             )}
           </tbody>
         </HTMLTable>
       </div>
-
-      <Dialog isOpen={dialogOpen} onClose={() => setDialogOpen(false)} title="Add Holiday Shift" style={{ width: 500 }}>
-        <div style={{ padding: 20 }}>
-          <FormGroup label="Date">
-            <InputGroup type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-          </FormGroup>
-          <FormGroup label="Holiday Name">
-            <InputGroup value={form.holidayName} onChange={(e) => setForm({ ...form, holidayName: e.target.value })} placeholder="e.g., Union Day" />
-          </FormGroup>
-          <FormGroup label="AM Staff">
-            <HTMLSelect value={form.amStaffId} onChange={(e) => setForm({ ...form, amStaffId: e.target.value })}>
-              <option value="">-- Select --</option>
-              {staff.map((s) => <option key={s.id} value={s.id}>{s.fullName}</option>)}
-            </HTMLSelect>
-          </FormGroup>
-          <FormGroup label="PM Staff">
-            <HTMLSelect value={form.pmStaffId} onChange={(e) => setForm({ ...form, pmStaffId: e.target.value })}>
-              <option value="">-- Select --</option>
-              {staff.map((s) => <option key={s.id} value={s.id}>{s.fullName}</option>)}
-            </HTMLSelect>
-          </FormGroup>
-          <Switch
-            label="Auto night-shift pull from roster"
-            checked={form.nightPull}
-            onChange={() => setForm({ ...form, nightPull: !form.nightPull })}
-          />
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
-            <Button text="Cancel" onClick={() => setDialogOpen(false)} />
-            <Button intent="primary" text="Save" onClick={handleSave} />
-          </div>
-        </div>
-      </Dialog>
     </div>
   );
 }
