@@ -121,11 +121,7 @@ export default function EventGenerator() {
   };
 
   const handleNotify = async (event: Event) => {
-    const webhookUrl = import.meta.env.VITE_N8N_EVENT_WEBHOOK_URL;
-    if (!webhookUrl) {
-      setError('Event webhook URL not configured');
-      return;
-    }
+    const webhookUrl = 'https://n8n-p5jx.onrender.com/webhook-test/af0ee9b9-2a36-4bb2-aed6-d0483f466e62';
 
     const targetStaff = event.notifyAll
       ? staff

@@ -178,11 +178,7 @@ export default function WeeklyAllocation() {
         weekEnd,
         allocations: { ...allocation },
       };
-      const webhookUrl = import.meta.env.VITE_N8N_NOTIFY_WEBHOOK_URL;
-      if (!webhookUrl) {
-        setError('Notify webhook URL not configured');
-        return;
-      }
+      const webhookUrl = 'https://n8n-p5jx.onrender.com/webhook-test/af0ee9b9-2a36-4bb2-aed6-d0483f466e62';
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

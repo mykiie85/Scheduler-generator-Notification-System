@@ -61,11 +61,7 @@ export default function Announcements() {
   useEffect(() => { fetchData(); }, []);
 
   const sendWebhook = async (announcement: { title: string; content: string; scheduledAt?: string }) => {
-    const webhookUrl = import.meta.env.VITE_N8N_ANNOUNCEMENT_WEBHOOK_URL;
-    if (!webhookUrl) {
-      setError('Announcement webhook URL not configured');
-      return false;
-    }
+    const webhookUrl = 'https://n8n-p5jx.onrender.com/webhook-test/af0ee9b9-2a36-4bb2-aed6-d0483f466e62';
     try {
       await fetch(webhookUrl, {
         method: 'POST',
