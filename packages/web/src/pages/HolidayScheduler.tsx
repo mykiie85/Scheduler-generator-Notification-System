@@ -124,6 +124,7 @@ export default function HolidayScheduler() {
   const [staff, setStaff] = useState<Staff[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [notifying, setNotifying] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
@@ -222,41 +223,23 @@ export default function HolidayScheduler() {
     }
   };
 
-  const handleNotify = async () => {
-    const webhookUrl = 'https://n8n-p5jx.onrender.com/webhook-test/af0ee9b9-2a36-4bb2-aed6-d0483f466e62';
-    if (!date || !holidayName) {
+  const handleNotify = async (id?: string) => {
+    const targetId = id || editId;
+    if (!targetId) {
       setError('Save the holiday first before notifying');
       return;
     }
-
-    const staffPayload: { fullName: string; phone: string | null; lab: string; shift: string }[] = [];
-    for (const slot of SLOT_CONFIG) {
-      for (const staffId of data[slot.key]) {
-        const s = staff.find((st) => st.id === staffId);
-        if (s) {
-          staffPayload.push({
-            fullName: s.fullName,
-            phone: s.phone,
-            lab: slot.lab,
-            shift: slot.shift,
-          });
-        }
-      }
-    }
-
+    setNotifying(true);
+    setError('');
+    setSuccess('');
     try {
-      await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          holidayName,
-          holidayDate: date,
-          staff: staffPayload,
-        }),
-      });
-      setSuccess('Staff notified successfully');
-    } catch {
-      setError('Failed to send notification');
+      const res = await api.post(`/holidays/${targetId}/notify`);
+      setSuccess(`Staff notified successfully (${res.data.count} messages sent)`);
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || (err instanceof Error ? err.message : 'Unknown error');
+      setError(`Failed to notify staff: ${msg}`);
+    } finally {
+      setNotifying(false);
     }
   };
 
@@ -357,7 +340,8 @@ export default function HolidayScheduler() {
                 intent="success"
                 icon="notifications"
                 text="Notify Staff"
-                onClick={handleNotify}
+                loading={notifying}
+                onClick={() => handleNotify()}
               />
               <Button
                 minimal
@@ -402,6 +386,19 @@ export default function HolidayScheduler() {
                   <td>{resolveNames(d.bimaLabAm)}</td>
                   <td>
                     <ButtonGroup minimal>
+                      <Button
+                        small
+                        icon="edit"
+                        title="Edit"
+                        onClick={(e) => { e.stopPropagation(); loadShift(s); }}
+                      />
+                      <Button
+                        small
+                        icon="notifications"
+                        intent="success"
+                        title="Notify Staff"
+                        onClick={(e) => { e.stopPropagation(); handleNotify(s.id); }}
+                      />
                       <Button
                         small
                         icon="document"

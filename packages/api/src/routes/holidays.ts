@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { authMiddleware } from '../middleware/auth.js';
 import { exportHolidayDocx } from '../services/holiday-docx-export.js';
+import { config } from '../config.js';
 
 const prisma = new PrismaClient();
 export const holidayRouter = Router();
@@ -135,6 +136,96 @@ holidayRouter.get('/:id/export', async (req: Request, res: Response) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Export failed' });
+  }
+});
+
+// Normalize phone to 255 format (no + prefix for WhatsApp API)
+function normalizePhone(phone: string | null): string {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('255')) return digits;
+  if (digits.startsWith('0')) return '255' + digits.slice(1);
+  return '255' + digits;
+}
+
+// Notify staff via n8n webhook
+holidayRouter.post('/:id/notify', async (req: Request, res: Response) => {
+  try {
+    const shift = await prisma.holidayShift.findUnique({
+      where: { id: req.params.id },
+    });
+    if (!shift) {
+      res.status(404).json({ error: 'Holiday shift not found' });
+      return;
+    }
+
+    const webhookUrl = config.webhooks.holidayUrl;
+    if (!webhookUrl) {
+      res.status(500).json({ error: 'Holiday webhook URL not configured' });
+      return;
+    }
+
+    const shiftData = (shift.data as Record<string, string[]>) ?? {};
+
+    // Collect all unique staff IDs across all slots
+    const allIds = [
+      ...(shiftData.mainLabAm ?? []),
+      ...(shiftData.mainLabPm ?? []),
+      ...(shiftData.emdLabAm ?? []),
+      ...(shiftData.emdLabPm ?? []),
+      ...(shiftData.bimaLabAm ?? []),
+    ];
+    const uniqueIds = [...new Set(allIds)];
+
+    // Query staff for names and phone numbers
+    const staffRecords = uniqueIds.length > 0
+      ? await prisma.staff.findMany({ where: { id: { in: uniqueIds } } })
+      : [];
+    const staffMap = new Map(staffRecords.map((s) => [s.id, s]));
+
+    // Resolve staff IDs to { staff_name, phone_number }
+    const resolveSlot = (ids: string[]) =>
+      ids
+        .map((id) => {
+          const s = staffMap.get(id);
+          return s
+            ? { staff_name: s.fullName, phone_number: normalizePhone(s.phone) }
+            : null;
+        })
+        .filter(Boolean);
+
+    const payload = {
+      date: shift.date.toISOString().split('T')[0],
+      holiday_name: shift.holidayName,
+      hospital: 'Mwananyamala Regional Referral Hospital Laboratory',
+      am_shift: {
+        main_lab: resolveSlot(shiftData.mainLabAm ?? []),
+        emd_lab: resolveSlot(shiftData.emdLabAm ?? []),
+        bima_lab: resolveSlot(shiftData.bimaLabAm ?? []),
+      },
+      pm_shift: {
+        main_lab: resolveSlot(shiftData.mainLabPm ?? []),
+        emd_lab: resolveSlot(shiftData.emdLabPm ?? []),
+      },
+    };
+
+    const webhookRes = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!webhookRes.ok) {
+      const text = await webhookRes.text();
+      res.status(502).json({ error: `Webhook returned ${webhookRes.status}`, details: text });
+      return;
+    }
+
+    const totalStaff = allIds.length;
+    res.json({ message: 'Staff notified successfully', count: totalStaff });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to notify staff' });
   }
 });
 

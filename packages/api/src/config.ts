@@ -13,5 +13,6 @@ export const config = {
   },
   webhooks: {
     weeklyAllocationUrl: process.env.N8N_WEEKLY_ALLOCATION_WEBHOOK_URL || '',
+    holidayUrl: process.env.N8N_HOLIDAY_WEBHOOK_URL || '',
   },
 };
