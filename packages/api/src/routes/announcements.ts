@@ -56,8 +56,8 @@ async function sendAnnouncementWebhook(announcement: {
     hospital: 'Mwananyamala Regional Referral Hospital Laboratory',
     send_mode: 'both',
     group: {
-      id: '255757152773-1544525047@g.us',
-      name: 'MRRH LABORATORY',
+      id: '255714269583-1475527231@g.us',
+      name: 'MRRH LABORATORY.',
     },
     all_staff: staffRecords.map((s) => ({
       staff_name: s.fullName,

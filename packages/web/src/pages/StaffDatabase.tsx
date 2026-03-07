@@ -25,7 +25,7 @@ interface Staff {
 }
 
 const SECTIONS = ['Hematology', 'Chemistry', 'Microbiology', 'Serology', 'Phlebotomy', 'Reception/LIS', 'TB', 'Quality'];
-const CATEGORIES = ['DEGREE', 'DIPLOMA', 'CERTIFICATE', 'ATTENDANT'];
+const CATEGORIES = ['LAB_SCIENTIST', 'LAB_TECHNOLOGIST', 'LAB_ATTENDANT', 'ATTENDANT'];
 
 export default function StaffDatabase() {
   const [staff, setStaff] = useState<Staff[]>([]);
@@ -36,7 +36,7 @@ export default function StaffDatabase() {
   const [form, setForm] = useState({
     fileNo: '',
     fullName: '',
-    category: 'DEGREE',
+    category: 'LAB_SCIENTIST',
     primarySection: 'Hematology',
     phone: '',
     email: '',

@@ -12,7 +12,7 @@ const staffSchema = z.object({
   fileNo: z.string(),
   checkNo: z.string().optional(),
   fullName: z.string(),
-  category: z.enum(['DEGREE', 'DIPLOMA', 'CERTIFICATE', 'ATTENDANT']),
+  category: z.enum(['LAB_SCIENTIST', 'LAB_TECHNOLOGIST', 'LAB_ATTENDANT', 'ATTENDANT']),
   primarySection: z.string(),
   phone: z.string().optional(),
   email: z.string().email().optional(),
