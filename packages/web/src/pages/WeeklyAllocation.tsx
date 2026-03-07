@@ -173,23 +173,19 @@ export default function WeeklyAllocation() {
     setError('');
     setSuccess('');
     try {
-      const payload = {
-        weekStart,
-        weekEnd,
-        allocations: { ...allocation },
-      };
-      const webhookUrl = 'https://n8n-p5jx.onrender.com/webhook-test/af0ee9b9-2a36-4bb2-aed6-d0483f466e62';
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!response.ok) {
-        throw new Error(`Webhook returned ${response.status}`);
+      // Fetch latest saved allocation
+      const listRes = await api.get('/allocations');
+      if (listRes.data.length === 0) {
+        setError('Save an allocation first');
+        setNotifying(false);
+        return;
       }
-      setSuccess('Staff notified successfully');
-    } catch (err) {
-      setError(`Failed to notify staff: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      const latest = listRes.data[0];
+      const notifyRes = await api.post(`/allocations/${latest.id}/notify`);
+      setSuccess(`Staff notified successfully (${notifyRes.data.count} messages sent)`);
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || (err instanceof Error ? err.message : 'Unknown error');
+      setError(`Failed to notify staff: ${msg}`);
     } finally {
       setNotifying(false);
     }

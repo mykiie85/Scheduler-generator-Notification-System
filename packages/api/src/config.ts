@@ -11,4 +11,7 @@ export const config = {
   database: {
     url: process.env.DATABASE_URL || 'postgresql://labuser:labpass@localhost:5432/labscheduler',
   },
+  webhooks: {
+    weeklyAllocationUrl: process.env.N8N_WEEKLY_ALLOCATION_WEBHOOK_URL || '',
+  },
 };

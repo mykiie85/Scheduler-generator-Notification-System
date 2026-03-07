@@ -25,7 +25,10 @@
       "Bash(lsof:*)",
       "Bash(xargs kill:*)",
       "Bash(docker ps:*)",
-      "Bash(docker stop:*)"
+      "Bash(docker stop:*)",
+      "Bash(npx prisma db seed:*)",
+      "Bash(npx tsx:*)",
+      "Bash(npx vite)"
     ]
   }
 }
