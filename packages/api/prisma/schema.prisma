@@ -149,6 +149,8 @@ model Event {
   title       String
   description String?
   date        DateTime
+  time        String?
+  location    String?
   notifyAll   Boolean  @default(false) @map("notify_all")
   notifyIds   String[] @map("notify_ids")
   createdBy   String?  @map("created_by")
@@ -161,6 +163,9 @@ model Announcement {
   id          String    @id @default(uuid())
   title       String
   content     String
+  date        DateTime?
+  time        String?
+  location    String?
   scheduledAt DateTime? @map("scheduled_at")
   sentAt      DateTime? @map("sent_at")
   createdBy   String?   @map("created_by")

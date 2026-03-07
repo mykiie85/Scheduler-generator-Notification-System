@@ -19,6 +19,8 @@ interface Event {
   title: string;
   description: string | null;
   date: string;
+  time: string | null;
+  location: string | null;
   notifyAll: boolean;
   notifyIds: string[];
   createdAt: string;
@@ -42,6 +44,8 @@ export default function EventGenerator() {
     title: '',
     description: '',
     date: '',
+    time: '',
+    location: '',
     notifyAll: true,
     notifyIds: [] as string[],
   });
@@ -65,7 +69,7 @@ export default function EventGenerator() {
 
   const openCreate = () => {
     setEditId(null);
-    setForm({ title: '', description: '', date: '', notifyAll: true, notifyIds: [] });
+    setForm({ title: '', description: '', date: '', time: '', location: '', notifyAll: true, notifyIds: [] });
     setDialogOpen(true);
   };
 
@@ -75,6 +79,8 @@ export default function EventGenerator() {
       title: e.title,
       description: e.description || '',
       date: e.date.split('T')[0],
+      time: e.time || '',
+      location: e.location || '',
       notifyAll: e.notifyAll,
       notifyIds: e.notifyIds || [],
     });
@@ -89,6 +95,8 @@ export default function EventGenerator() {
     try {
       const payload = {
         ...form,
+        time: form.time || undefined,
+        location: form.location || undefined,
         date: new Date(form.date).toISOString(),
       };
 
@@ -97,7 +105,7 @@ export default function EventGenerator() {
         setSuccess('Event updated');
       } else {
         await api.post('/events', payload);
-        setSuccess('Event created');
+        setSuccess('Event created & staff notified');
       }
 
       setDialogOpen(false);
@@ -121,30 +129,13 @@ export default function EventGenerator() {
   };
 
   const handleNotify = async (event: Event) => {
-    const webhookUrl = 'https://n8n-p5jx.onrender.com/webhook-test/af0ee9b9-2a36-4bb2-aed6-d0483f466e62';
-
-    const targetStaff = event.notifyAll
-      ? staff
-      : staff.filter((s) => event.notifyIds.includes(s.id));
-
     try {
-      await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          eventTitle: event.title,
-          eventDescription: event.description,
-          eventDate: event.date,
-          staff: targetStaff.map((s) => ({
-            fullName: s.fullName,
-            phone: s.phone,
-          })),
-        }),
-      });
+      await api.post(`/events/${event.id}/notify`);
       setSuccess(`Notifications sent for "${event.title}"`);
       setError('');
-    } catch {
-      setError('Failed to send notifications');
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || 'Unknown error';
+      setError(`Failed to send notifications: ${msg}`);
     }
   };
 
@@ -173,6 +164,7 @@ export default function EventGenerator() {
           <thead>
             <tr>
               <th>Date</th>
+              <th>Time</th>
               <th>Title</th>
               <th>Description</th>
               <th>Notify</th>
@@ -183,6 +175,7 @@ export default function EventGenerator() {
             {events.map((e) => (
               <tr key={e.id}>
                 <td>{new Date(e.date).toLocaleDateString('en-GB')}</td>
+                <td>{e.time || '-'}</td>
                 <td>{e.title}</td>
                 <td>{e.description || '-'}</td>
                 <td><Tag minimal>{e.notifyAll ? 'All Staff' : `${e.notifyIds.length} staff`}</Tag></td>
@@ -197,7 +190,7 @@ export default function EventGenerator() {
             ))}
             {events.length === 0 && (
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', color: '#888' }}>
+                <td colSpan={6} style={{ textAlign: 'center', color: '#888' }}>
                   No events yet
                 </td>
               </tr>
@@ -219,8 +212,16 @@ export default function EventGenerator() {
           <FormGroup label="Description">
             <TextArea fill value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Event details..." />
           </FormGroup>
-          <FormGroup label="Date">
-            <InputGroup type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+          <div style={{ display: 'flex', gap: 12 }}>
+            <FormGroup label="Date" style={{ flex: 1 }}>
+              <InputGroup type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
+            </FormGroup>
+            <FormGroup label="Time" style={{ flex: 1 }}>
+              <InputGroup type="time" value={form.time} onChange={(e) => setForm({ ...form, time: e.target.value })} placeholder="e.g. 08:00" />
+            </FormGroup>
+          </div>
+          <FormGroup label="Location">
+            <InputGroup value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="e.g. Conference Room, Main Lab" leftIcon="map-marker" />
           </FormGroup>
           <Switch
             label="Notify all staff"

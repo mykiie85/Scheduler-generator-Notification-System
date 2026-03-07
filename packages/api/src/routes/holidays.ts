@@ -213,6 +213,7 @@ holidayRouter.post('/:id/notify', async (req: Request, res: Response) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(30000),
     });
 
     if (!webhookRes.ok) {

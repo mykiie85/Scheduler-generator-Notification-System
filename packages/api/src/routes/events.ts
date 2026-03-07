@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { authMiddleware } from '../middleware/auth.js';
-import { sendNotification } from '../services/notification.js';
+import { config } from '../config.js';
 
 const prisma = new PrismaClient();
 export const eventRouter = Router();
@@ -13,11 +13,77 @@ const eventSchema = z.object({
   title: z.string(),
   description: z.string().optional(),
   date: z.string().datetime(),
+  time: z.string().optional(),
+  location: z.string().optional(),
   notifyAll: z.boolean().optional(),
   notifyIds: z.array(z.string()).optional(),
 });
 
-// Create event
+// Normalize phone to 255 format
+function normalizePhone(phone: string | null): string {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('255')) return digits;
+  if (digits.startsWith('0')) return '255' + digits.slice(1);
+  return '255' + digits;
+}
+
+// Send event notification to n8n webhook
+async function sendEventWebhook(event: {
+  title: string;
+  description: string | null;
+  date: Date;
+  time: string | null;
+  location: string | null;
+  notifyAll: boolean;
+  notifyIds: string[];
+}) {
+  const webhookUrl = config.webhooks.eventUrl;
+  if (!webhookUrl) return;
+
+  // Resolve staff
+  let staffRecords: { fullName: string; phone: string | null; primarySection: string }[];
+  if (event.notifyAll) {
+    staffRecords = await prisma.staff.findMany({
+      where: { isActive: true },
+      select: { fullName: true, phone: true, primarySection: true },
+    });
+  } else if (event.notifyIds.length > 0) {
+    staffRecords = await prisma.staff.findMany({
+      where: { id: { in: event.notifyIds } },
+      select: { fullName: true, phone: true, primarySection: true },
+    });
+  } else {
+    staffRecords = [];
+  }
+
+  const payload = {
+    event: {
+      title: event.title,
+      description: event.description || '',
+      date: event.date.toISOString().split('T')[0],
+      time: event.time || '00:00hrs',
+      location: event.location || '',
+      type: 'event',
+    },
+    hospital: 'Mwananyamala Regional Referral Hospital Laboratory',
+    notify_all: event.notifyAll,
+    selected_staff: staffRecords.map((s) => ({
+      staff_name: s.fullName,
+      phone_number: normalizePhone(s.phone),
+      department: s.primarySection,
+    })),
+  };
+
+  await fetch(webhookUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(30000),
+  });
+}
+
+// Create event (also triggers notification)
 eventRouter.post('/', async (req: Request, res: Response) => {
   try {
     const data = eventSchema.parse(req.body);
@@ -29,31 +95,20 @@ eventRouter.post('/', async (req: Request, res: Response) => {
       },
     });
 
-    // Send notifications (stubbed)
-    if (data.notifyAll) {
-      const allStaff = await prisma.staff.findMany({ where: { isActive: true } });
-      for (const s of allStaff) {
-        await sendNotification({
-          type: 'event',
-          channel: 'whatsapp',
-          recipient: s.phone || s.email || s.fullName,
-          subject: data.title,
-          body: data.description || data.title,
-        });
-      }
-    } else if (data.notifyIds?.length) {
-      for (const id of data.notifyIds) {
-        const s = await prisma.staff.findUnique({ where: { id } });
-        if (s) {
-          await sendNotification({
-            type: 'event',
-            channel: 'whatsapp',
-            recipient: s.phone || s.email || s.fullName,
-            subject: data.title,
-            body: data.description || data.title,
-          });
-        }
-      }
+    // Send notification to n8n webhook
+    try {
+      await sendEventWebhook({
+        title: data.title,
+        description: data.description || null,
+        date: new Date(data.date),
+        time: data.time || null,
+        location: data.location || null,
+        notifyAll: data.notifyAll ?? false,
+        notifyIds: data.notifyIds ?? [],
+      });
+    } catch (webhookErr) {
+      console.error('Event webhook failed:', webhookErr);
+      // Don't fail the create if webhook fails
     }
 
     res.status(201).json(event);
@@ -97,6 +152,38 @@ eventRouter.put('/:id', async (req: Request, res: Response) => {
     }
     console.error(err);
     res.status(500).json({ error: 'Failed to update event' });
+  }
+});
+
+// Re-send event notification
+eventRouter.post('/:id/notify', async (req: Request, res: Response) => {
+  try {
+    const event = await prisma.event.findUnique({ where: { id: req.params.id } });
+    if (!event) {
+      res.status(404).json({ error: 'Event not found' });
+      return;
+    }
+
+    const webhookUrl = config.webhooks.eventUrl;
+    if (!webhookUrl) {
+      res.status(500).json({ error: 'Event webhook URL not configured' });
+      return;
+    }
+
+    await sendEventWebhook({
+      title: event.title,
+      description: event.description,
+      date: event.date,
+      time: event.time,
+      location: event.location,
+      notifyAll: event.notifyAll,
+      notifyIds: event.notifyIds,
+    });
+
+    res.json({ message: 'Notification sent successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to send notification' });
   }
 });
 

@@ -2,30 +2,129 @@ import { Router, Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { authMiddleware } from '../middleware/auth.js';
+import { config } from '../config.js';
 
 const prisma = new PrismaClient();
 export const announcementRouter = Router();
 
 announcementRouter.use(authMiddleware);
 
+// Normalize phone to 255 format
+function normalizePhone(phone: string | null): string {
+  if (!phone) return '';
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('255')) return digits;
+  if (digits.startsWith('0')) return '255' + digits.slice(1);
+  return '255' + digits;
+}
+
 const schema = z.object({
   title: z.string(),
   content: z.string(),
+  date: z.string().datetime().optional(),
+  time: z.string().optional(),
+  location: z.string().optional(),
   scheduledAt: z.string().datetime().optional(),
 });
 
-// Create announcement
+// Send announcement webhook to n8n
+async function sendAnnouncementWebhook(announcement: {
+  title: string;
+  content: string;
+  date: Date | null;
+  time: string | null;
+  location: string | null;
+}) {
+  const webhookUrl = config.webhooks.announcementUrl;
+  if (!webhookUrl) return;
+
+  // Fetch ALL staff
+  const staffRecords = await prisma.staff.findMany({
+    where: { isActive: true },
+    select: { fullName: true, phone: true, primarySection: true },
+  });
+
+  const payload = {
+    event: {
+      title: announcement.title,
+      description: announcement.content,
+      date: announcement.date ? announcement.date.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      time: announcement.time || '00:00hrs',
+      location: announcement.location || '',
+      type: 'announcement',
+    },
+    hospital: 'Mwananyamala Regional Referral Hospital Laboratory',
+    send_mode: 'both',
+    group: {
+      id: '255757152773-1544525047@g.us',
+      name: 'MRRH LABORATORY',
+    },
+    all_staff: staffRecords.map((s) => ({
+      staff_name: s.fullName,
+      phone_number: normalizePhone(s.phone),
+      department: s.primarySection,
+    })),
+  };
+
+  console.log('Sending announcement webhook to:', webhookUrl);
+  console.log('Payload staff count:', payload.all_staff.length);
+
+  const res = await fetch(webhookUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(30000),
+  });
+
+  const responseText = await res.text();
+  console.log('Webhook response:', res.status, responseText);
+
+  if (!res.ok) {
+    throw new Error(`Webhook returned ${res.status}: ${responseText}`);
+  }
+}
+
+// Create announcement (auto-notifies when mode is "now")
 announcementRouter.post('/', async (req: Request, res: Response) => {
   try {
     const data = schema.parse(req.body);
     const announcement = await prisma.announcement.create({
       data: {
-        ...data,
+        title: data.title,
+        content: data.content,
+        date: data.date ? new Date(data.date) : null,
+        time: data.time || null,
+        location: data.location || null,
         scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : null,
         createdBy: req.user?.userId,
       },
     });
-    res.status(201).json(announcement);
+
+    // Auto-notify if not scheduled for later
+    let webhookSent = false;
+    let webhookError = '';
+    if (!data.scheduledAt) {
+      try {
+        await sendAnnouncementWebhook({
+          title: data.title,
+          content: data.content,
+          date: data.date ? new Date(data.date) : null,
+          time: data.time || null,
+          location: data.location || null,
+        });
+        // Mark as sent
+        await prisma.announcement.update({
+          where: { id: announcement.id },
+          data: { sentAt: new Date() },
+        });
+        webhookSent = true;
+      } catch (webhookErr: any) {
+        webhookError = webhookErr?.message || 'Unknown webhook error';
+        console.error('Announcement webhook failed:', webhookErr);
+      }
+    }
+
+    res.status(201).json({ ...announcement, webhookSent, webhookError });
   } catch (err) {
     if (err instanceof z.ZodError) {
       res.status(400).json({ error: err.errors });
@@ -57,6 +156,7 @@ announcementRouter.put('/:id', async (req: Request, res: Response) => {
       where: { id: req.params.id },
       data: {
         ...data,
+        date: data.date ? new Date(data.date) : undefined,
         scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : undefined,
       },
     });
@@ -68,6 +168,42 @@ announcementRouter.put('/:id', async (req: Request, res: Response) => {
     }
     console.error(err);
     res.status(500).json({ error: 'Failed to update announcement' });
+  }
+});
+
+// Re-send announcement notification
+announcementRouter.post('/:id/notify', async (req: Request, res: Response) => {
+  try {
+    const announcement = await prisma.announcement.findUnique({ where: { id: req.params.id } });
+    if (!announcement) {
+      res.status(404).json({ error: 'Announcement not found' });
+      return;
+    }
+
+    const webhookUrl = config.webhooks.announcementUrl;
+    if (!webhookUrl) {
+      res.status(500).json({ error: 'Announcement webhook URL not configured' });
+      return;
+    }
+
+    await sendAnnouncementWebhook({
+      title: announcement.title,
+      content: announcement.content,
+      date: announcement.date,
+      time: announcement.time,
+      location: announcement.location,
+    });
+
+    // Mark as sent
+    await prisma.announcement.update({
+      where: { id: announcement.id },
+      data: { sentAt: new Date() },
+    });
+
+    res.json({ message: 'Announcement sent successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to send announcement' });
   }
 });
 
