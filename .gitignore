@@ -1,11 +1,57 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
+build/
+
+# Environment variables (contains secrets, DB passwords, webhook URLs)
 .env
-*.env.local
+.env.*
+!.env.example
+**/.env
+**/.env.*
+
+# OS files
 .DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
 *.log
+npm-debug.log*
+pnpm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test & coverage
 coverage/
+.nyc_output/
+
+# Build caches
 .turbo/
 .cache/
+*.tsbuildinfo
+
+# Prisma
 prisma/*.db
 prisma/migrations/
+
+# Secrets & credentials (never commit these)
+*.pem
+*.key
+*.p12
+*.pfx
+*.cert
+*.crt
+credentials.json
+serviceAccountKey.json
+*.keystore
+
+# Docker volumes
+pgdata/
+n8ndata/
