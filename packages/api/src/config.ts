@@ -5,11 +5,11 @@ export const config = {
   port: parseInt(process.env.API_PORT || '3001', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   jwt: {
-    secret: process.env.JWT_SECRET || 'dev-secret-change-me',
+    secret: process.env.JWT_SECRET || (() => { throw new Error('JWT_SECRET env var is required'); })(),
     expiresIn: process.env.JWT_EXPIRES_IN || '7d',
   },
   database: {
-    url: process.env.DATABASE_URL || 'postgresql://labuser:labpass@localhost:5432/labscheduler',
+    url: process.env.DATABASE_URL || (() => { throw new Error('DATABASE_URL env var is required'); })(),
   },
   webhooks: {
     weeklyAllocationUrl: process.env.N8N_WEEKLY_ALLOCATION_WEBHOOK_URL || '',

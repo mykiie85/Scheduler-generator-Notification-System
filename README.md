@@ -73,11 +73,11 @@ The system uses n8n workflows to automate communication.
 
 Webhooks
 Page	Webhook
-Roster Generation	/webhook/20d4cb09-4285-4614-914f-xxxxxxxxxxx
-Weekly Allocation	/webhook/5046d729-cf16-40f7-b9xxxxxxxxxxxxxxx
-Holiday Shifts	/webhook/aa378e69-b27b-4df7-b98a-xxxxxxxxxxxx
-Events	/webhook/ec97b29e-9e95-48f6-af5b-xxxxxxxxxxxxx
-Announcements	/webhook/2d6429b8-6735-46c5-81ae-xxxxxxxxxxxxxx
+Roster Generation	/webhook/<your-roster-webhook-id>
+Weekly Allocation	/webhook/<your-allocation-webhook-id>
+Holiday Shifts	/webhook/<your-holiday-webhook-id>
+Events	/webhook/<your-event-webhook-id>
+Announcements	/webhook/<your-announcement-webhook-id>
 
 Each webhook triggers a workflow that:
 
@@ -130,10 +130,10 @@ Files are sent using base64 or URL media messages.
 The automation server runs n8n in Docker on Render.
 
 Required Environment Variables
-N8N_HOST=n8n-p5jx.onrender.com
+N8N_HOST=your-n8n-instance.onrender.com
 N8N_PROTOCOL=https
-WEBHOOK_URL=https://n8n-p5jx.onrender.com
-N8N_EDITOR_BASE_URL=https://n8n-p5jx.onrender.com
+WEBHOOK_URL=https://your-n8n-instance.onrender.com
+N8N_EDITOR_BASE_URL=https://your-n8n-instance.onrender.com
 💾 Persistent Storage
 
 To prevent workflow loss during redeployments, attach a Render Persistent Disk:

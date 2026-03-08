@@ -8,9 +8,9 @@ build/
 # Environment variables (contains secrets, DB passwords, webhook URLs)
 .env
 .env.*
-!.env.example
 **/.env
 **/.env.*
+!.env.example
 
 # OS files
 .DS_Store
