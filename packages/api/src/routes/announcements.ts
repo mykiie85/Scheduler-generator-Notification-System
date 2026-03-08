@@ -9,6 +9,27 @@ export const announcementRouter = Router();
 
 announcementRouter.use(authMiddleware);
 
+// Rate limit: max 5 announcement notifications per day
+const DAILY_LIMIT = 5;
+let notifyCount = 0;
+let notifyDate = new Date().toDateString();
+
+function checkNotifyLimit(): string | null {
+  const today = new Date().toDateString();
+  if (today !== notifyDate) {
+    notifyDate = today;
+    notifyCount = 0;
+  }
+  if (notifyCount >= DAILY_LIMIT) {
+    return `Daily announcement limit reached (${DAILY_LIMIT}/day). Try again tomorrow.`;
+  }
+  return null;
+}
+
+function incrementNotifyCount() {
+  notifyCount++;
+}
+
 // Normalize phone to 255 format
 function normalizePhone(phone: string | null): string {
   if (!phone) return '';
@@ -104,7 +125,10 @@ announcementRouter.post('/', async (req: Request, res: Response) => {
     let webhookSent = false;
     let webhookError = '';
     if (!data.scheduledAt) {
-      try {
+      const limitErr = checkNotifyLimit();
+      if (limitErr) {
+        webhookError = limitErr;
+      } else try {
         await sendAnnouncementWebhook({
           title: data.title,
           content: data.content,
@@ -117,6 +141,7 @@ announcementRouter.post('/', async (req: Request, res: Response) => {
           where: { id: announcement.id },
           data: { sentAt: new Date() },
         });
+        incrementNotifyCount();
         webhookSent = true;
       } catch (webhookErr: any) {
         webhookError = webhookErr?.message || 'Unknown webhook error';
@@ -174,6 +199,12 @@ announcementRouter.put('/:id', async (req: Request, res: Response) => {
 // Re-send announcement notification
 announcementRouter.post('/:id/notify', async (req: Request, res: Response) => {
   try {
+    const limitErr = checkNotifyLimit();
+    if (limitErr) {
+      res.status(429).json({ error: limitErr });
+      return;
+    }
+
     const announcement = await prisma.announcement.findUnique({ where: { id: req.params.id } });
     if (!announcement) {
       res.status(404).json({ error: 'Announcement not found' });
@@ -199,8 +230,9 @@ announcementRouter.post('/:id/notify', async (req: Request, res: Response) => {
       where: { id: announcement.id },
       data: { sentAt: new Date() },
     });
+    incrementNotifyCount();
 
-    res.json({ message: 'Announcement sent successfully' });
+    res.json({ message: 'Announcement sent successfully', remaining: DAILY_LIMIT - notifyCount });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to send announcement' });
