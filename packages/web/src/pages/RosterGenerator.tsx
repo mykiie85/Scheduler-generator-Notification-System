@@ -118,41 +118,11 @@ export default function RosterGenerator() {
     setNotifying(true);
     setError('');
     try {
-      const monthName = MONTHS[month - 1];
-
-      // Build a text summary of the roster for WhatsApp
-      const lines: string[] = [];
-      lines.push(`*${monthName} ${year} DUTY ROSTER*`);
-      lines.push('');
-
-      // Header row: DATE | DAY | staff shortcodes
-      const codes = roster.staffList.map((s) => s.shortCode);
-      lines.push(`DATE | DAY | ${codes.join(' | ')}`);
-      lines.push('---');
-
-      for (const day of roster.days) {
-        const shifts = codes.map((sc) => day.shifts[sc] || '-');
-        lines.push(`${day.date} | ${day.dayName} | ${shifts.join(' | ')}`);
-      }
-
-      const payload = {
-        month,
-        year,
-        monthName,
-        staffList: roster.staffList,
-        rosterText: lines.join('\n'),
-        roster: roster,
-      };
-
-      await fetch('https://n8n-p5jx.onrender.com/webhook-test/af0ee9b9-2a36-4bb2-aed6-d0483f466e62', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      alert('Roster sent to WhatsApp notification workflow!');
-    } catch {
-      setError('Failed to send notification. Make sure n8n is running.');
+      const res = await api.post(`/rosters/${year}/${month}/notify`);
+      alert(`Draft roster sent to ${res.data.recipientCount} management members`);
+    } catch (err: any) {
+      const msg = err.response?.data?.error || 'Failed to send notification';
+      setError(msg);
     } finally {
       setNotifying(false);
     }

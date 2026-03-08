@@ -16,6 +16,9 @@ export default function Layout({ children }: LayoutProps) {
         <Sidebar collapsed={collapsed} onToggle={() => setCollapsed((c) => !c)} />
         <main className={`app-main ${collapsed ? 'sidebar-collapsed' : ''}`}>
           {children}
+          <footer style={{ marginTop: 'auto', paddingTop: 24, paddingBottom: 8, textAlign: 'center', fontSize: 10, color: '#aab4c0', letterSpacing: 0.3 }}>
+            Developed by Mike Sanga &middot; mykiie85@gmail.com
+          </footer>
         </main>
       </div>
     </>

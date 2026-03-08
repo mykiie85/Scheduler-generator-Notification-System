@@ -16,5 +16,6 @@ export const config = {
     holidayUrl: process.env.N8N_HOLIDAY_WEBHOOK_URL || '',
     eventUrl: process.env.N8N_EVENT_WEBHOOK_URL || '',
     announcementUrl: process.env.N8N_ANNOUNCEMENT_WEBHOOK_URL || '',
+    rosterUrl: process.env.N8N_ROSTER_WEBHOOK_URL || '',
   },
 };

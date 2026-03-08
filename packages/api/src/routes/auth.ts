@@ -8,39 +8,9 @@ import { config } from '../config.js';
 const prisma = new PrismaClient();
 export const authRouter = Router();
 
-const registerSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-  fullName: z.string().min(2),
-});
-
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string(),
-});
-
-authRouter.post('/register', async (req: Request, res: Response) => {
-  try {
-    const { email, password, fullName } = registerSchema.parse(req.body);
-    const existing = await prisma.user.findUnique({ where: { email } });
-    if (existing) {
-      res.status(400).json({ error: 'Email already registered' });
-      return;
-    }
-    const passwordHash = await bcrypt.hash(password, 12);
-    const user = await prisma.user.create({
-      data: { email, passwordHash, fullName },
-      select: { id: true, email: true, fullName: true, role: true, approvalStatus: true },
-    });
-    res.status(201).json({ user, message: 'Account created. Awaiting admin approval.' });
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      res.status(400).json({ error: err.errors });
-      return;
-    }
-    console.error(err);
-    res.status(500).json({ error: 'Registration failed' });
-  }
 });
 
 authRouter.post('/login', async (req: Request, res: Response) => {

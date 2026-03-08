@@ -198,6 +198,11 @@ holidayRouter.post('/:id/notify', async (req: Request, res: Response) => {
       date: shift.date.toISOString().split('T')[0],
       holiday_name: shift.holidayName,
       hospital: 'Mwananyamala Regional Referral Hospital Laboratory',
+      send_mode: 'both',
+      group: {
+        id: '255714269583-1475527231@g.us',
+        name: 'MRRH LABORATORY.',
+      },
       am_shift: {
         main_lab: resolveSlot(shiftData.mainLabAm ?? []),
         emd_lab: resolveSlot(shiftData.emdLabAm ?? []),

@@ -6,46 +6,81 @@ const prisma = new PrismaClient();
 async function main() {
   console.log('Seeding database...');
 
-  // ── Admin & Management Users ──
-  const adminHash = await bcrypt.hash('admin123', 12);
-  await prisma.user.upsert({
-    where: { email: 'mykiie85@gmail.com' },
-    update: {},
-    create: {
+  // ── Management Users (only these users have access to the app) ──
+  const adminHash = await bcrypt.hash('LabScheduler2026!', 12);
+
+  const managementUsers = [
+    {
+      fileNo: 'FRP-6897',
       email: 'mykiie85@gmail.com',
-      passwordHash: adminHash,
       fullName: 'Mike Levison Sanga',
-      role: 'ADMIN',
-      approvalStatus: 'APPROVED',
+      phone: '0687729501',
+      title: 'Admin',
+      role: 'ADMIN' as const,
     },
-  });
-
-  await prisma.user.upsert({
-    where: { email: 'njamas49@gmail.com' },
-    update: {},
-    create: {
+    {
+      fileNo: 'FRP-1083',
       email: 'njamas49@gmail.com',
-      passwordHash: adminHash,
       fullName: 'Shauri Ramadhani Njama',
-      role: 'MANAGER',
-      approvalStatus: 'APPROVED',
+      phone: '0654312619',
+      title: 'Laboratory Manager',
+      role: 'MANAGER' as const,
     },
-  });
-
-  // Keep old admin email for backward compatibility
-  await prisma.user.upsert({
-    where: { email: 'mike.sanga@lab.go.tz' },
-    update: {},
-    create: {
-      email: 'mike.sanga@lab.go.tz',
-      passwordHash: adminHash,
-      fullName: 'Mike Levison Sanga',
-      role: 'ADMIN',
-      approvalStatus: 'APPROVED',
+    {
+      fileNo: 'FRP-0029',
+      email: 'jullyelly@yahoo.com',
+      fullName: 'Julius Elias Kissinga',
+      phone: '0713755628',
+      title: 'Quality Officer',
+      role: 'MANAGER' as const,
     },
-  });
+    {
+      fileNo: 'FRP-6665',
+      email: 'omarychuri02@gmail.com',
+      fullName: 'Omari Ramadhani',
+      phone: '0762872253',
+      title: 'Deputy Manager',
+      role: 'MANAGER' as const,
+    },
+    {
+      fileNo: 'FRP-368',
+      email: 'ekinalachristopha@gmail.com',
+      fullName: 'Ekinala Christopher Mwasamanyambi',
+      phone: '0717012085',
+      title: 'Deputy Manager',
+      role: 'MANAGER' as const,
+    },
+    {
+      fileNo: 'FRP-0755',
+      email: 'neemanestory112@gmail.com',
+      fullName: 'Neema Nestory Mrema',
+      phone: '0657266566',
+      title: 'Safety Officer',
+      role: 'MANAGER' as const,
+    },
+  ];
 
-  console.log('Users seeded.');
+  for (const u of managementUsers) {
+    await prisma.user.upsert({
+      where: { email: u.email },
+      update: { fullName: u.fullName, phone: u.phone, title: u.title, fileNo: u.fileNo, passwordHash: adminHash, approvalStatus: 'APPROVED' },
+      create: {
+        fileNo: u.fileNo,
+        email: u.email,
+        passwordHash: adminHash,
+        fullName: u.fullName,
+        phone: u.phone,
+        title: u.title,
+        role: u.role,
+        approvalStatus: 'APPROVED',
+      },
+    });
+  }
+
+  // Clean up old backward-compat user
+  await prisma.user.deleteMany({ where: { email: 'mike.sanga@lab.go.tz' } });
+
+  console.log('Management users seeded (6 users).');
 
   // ── 33 Real Staff Members (from staff_db + excel_code_mapping) ──
   type StaffSeed = {

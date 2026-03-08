@@ -57,7 +57,7 @@ async function sendEventWebhook(event: {
     staffRecords = [];
   }
 
-  const payload = {
+  const payload: Record<string, unknown> = {
     event: {
       title: event.title,
       description: event.description || '',
@@ -74,6 +74,17 @@ async function sendEventWebhook(event: {
       department: s.primarySection,
     })),
   };
+
+  // Include group info when notifying all staff
+  if (event.notifyAll) {
+    payload.send_mode = 'both';
+    payload.group = {
+      id: '255714269583-1475527231@g.us',
+      name: 'MRRH LABORATORY.',
+    };
+  } else {
+    payload.send_mode = 'individual';
+  }
 
   await fetch(webhookUrl, {
     method: 'POST',

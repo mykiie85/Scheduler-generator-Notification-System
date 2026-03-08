@@ -29,7 +29,8 @@
       "Bash(npx prisma db seed:*)",
       "Bash(npx tsx:*)",
       "Bash(npx vite)",
-      "Bash(npx prisma generate:*)"
+      "Bash(npx prisma generate:*)",
+      "Bash(npx vite:*)"
     ]
   }
 }
