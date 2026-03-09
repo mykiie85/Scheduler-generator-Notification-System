@@ -58,14 +58,14 @@ export default function StaffDatabase() {
 
   const filtered = staff.filter(
     (s) =>
-      s.fullName.toLowerCase().includes(search.toLowerCase()) ||
-      s.fileNo.toLowerCase().includes(search.toLowerCase()) ||
-      s.primarySection.toLowerCase().includes(search.toLowerCase()),
+      (s.fullName || '').toLowerCase().includes(search.toLowerCase()) ||
+      (s.fileNo || '').toLowerCase().includes(search.toLowerCase()) ||
+      (s.primarySection || '').toLowerCase().includes(search.toLowerCase()),
   );
 
   const openAdd = () => {
     setEditing(null);
-    setForm({ fileNo: '', fullName: '', category: 'DEGREE', primarySection: 'Hematology', phone: '', email: '' });
+    setForm({ fileNo: '', fullName: '', category: 'LAB_SCIENTIST', primarySection: 'Hematology', phone: '', email: '' });
     setDialogOpen(true);
   };
 
@@ -84,15 +84,28 @@ export default function StaffDatabase() {
 
   const handleSave = async () => {
     try {
+      const payload = {
+        ...form,
+        phone: form.phone || undefined,
+        email: form.email || undefined,
+      };
       if (editing) {
-        await api.put(`/staff/${editing.id}`, form);
+        await api.put(`/staff/${editing.id}`, payload);
       } else {
-        await api.post('/staff', form);
+        await api.post('/staff', payload);
       }
       setDialogOpen(false);
+      setError('');
       fetchStaff();
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Save failed');
+      const errData = err.response?.data?.error;
+      if (Array.isArray(errData)) {
+        setError(errData.map((e: any) => e.message).join(', '));
+      } else if (typeof errData === 'string') {
+        setError(errData);
+      } else {
+        setError('Save failed');
+      }
     }
   };
 

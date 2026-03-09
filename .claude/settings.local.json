@@ -44,7 +44,9 @@
       "Bash(git add README.md infra/docker-compose.yml packages/api/src/config.ts .env.example)",
       "Bash(git add README.md infra/docker-compose.yml packages/api/src/config.ts .env.example .gitignore)",
       "Bash(git commit:*)",
-      "Bash(git push origin main)"
+      "Bash(git push origin main)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(where pnpm)"
     ]
   }
 }
