@@ -4,7 +4,9 @@ import { useAuth } from '../context/AuthContext';
 
 interface SidebarProps {
   collapsed: boolean;
+  mobileOpen?: boolean;
   onToggle: () => void;
+  onNavigate?: () => void;
 }
 
 interface NavItem {
@@ -27,7 +29,7 @@ const navItems: NavItem[] = [
   { path: '/profile', label: 'Profile', icon: 'user' },
 ];
 
-export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export default function Sidebar({ collapsed, mobileOpen, onToggle, onNavigate }: SidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -37,13 +39,13 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   );
 
   return (
-    <aside className={`app-sidebar ${collapsed ? 'collapsed' : ''}`}>
+    <aside className={`app-sidebar ${collapsed ? 'collapsed' : ''} ${mobileOpen ? 'mobile-open' : ''}`}>
       <nav className="sidebar-nav">
         {filteredItems.map((item) => (
           <div
             key={item.path}
             className={`sidebar-link ${location.pathname === item.path ? 'active' : ''}`}
-            onClick={() => navigate(item.path)}
+            onClick={() => { navigate(item.path); onNavigate?.(); }}
           >
             <Icon icon={item.icon} size={16} />
             <span>{item.label}</span>

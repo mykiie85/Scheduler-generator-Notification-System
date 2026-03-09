@@ -168,7 +168,7 @@ export default function UserManagement() {
         style={{ width: 440 }}
       >
         <DialogBody>
-          <div style={{ display: 'flex', gap: 12 }}>
+          <div className="dialog-row" style={{ display: 'flex', gap: 12 }}>
             <FormGroup label="File No" style={{ flex: 1 }}>
               <InputGroup value={form.fileNo} onChange={(e) => setForm({ ...form, fileNo: e.target.value })} placeholder="FRP-0000" />
             </FormGroup>

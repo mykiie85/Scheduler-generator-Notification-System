@@ -284,7 +284,7 @@ export default function HolidayScheduler() {
           {editId ? 'Edit Holiday Shift' : 'New Holiday Shift'}
         </h3>
 
-        <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div className="action-bar" style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
           <FormGroup label="Date" style={{ flex: 1, minWidth: 180 }}>
             <InputGroup
               type="date"
@@ -321,7 +321,7 @@ export default function HolidayScheduler() {
         </div>
 
         {/* Actions */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div className="action-bar" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <Button
             intent="primary"
             icon={editId ? 'floppy-disk' : 'add'}

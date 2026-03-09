@@ -19,7 +19,7 @@ export default function Header({ onToggleSidebar }: HeaderProps) {
       <Icon icon="lab-test" style={{ marginRight: 8 }} />
       <h1>Lab Scheduler</h1>
       <div className="header-right">
-        <span style={{ fontSize: 13, opacity: 0.85 }}>{user?.fullName}</span>
+        <span className="user-name" style={{ fontSize: 13, opacity: 0.85 }}>{user?.fullName}</span>
         <Button minimal icon="log-out" onClick={logout} style={{ color: 'white' }} />
       </div>
     </header>

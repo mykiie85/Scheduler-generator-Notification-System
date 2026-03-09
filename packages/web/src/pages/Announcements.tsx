@@ -237,7 +237,7 @@ export default function Announcements() {
             />
           </FormGroup>
 
-          <div style={{ display: 'flex', gap: 12 }}>
+          <div className="dialog-row" style={{ display: 'flex', gap: 12 }}>
             <FormGroup label="Date" style={{ flex: 1 }}>
               <InputGroup type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
             </FormGroup>

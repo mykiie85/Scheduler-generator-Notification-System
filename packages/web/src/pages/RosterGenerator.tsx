@@ -231,7 +231,7 @@ export default function RosterGenerator() {
 
       {error && <Callout intent="danger" style={{ marginBottom: 12 }}>{error}</Callout>}
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center' }}>
+      <div className="action-bar" style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center' }}>
         <HTMLSelect value={month} onChange={(e) => setMonth(Number(e.target.value))}>
           {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
         </HTMLSelect>

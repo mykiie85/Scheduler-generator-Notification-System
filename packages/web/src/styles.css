@@ -251,15 +251,148 @@ body {
   margin-bottom: 16px;
 }
 
-/* Responsive */
+/* Mobile overlay backdrop (hidden on desktop) */
+.mobile-overlay {
+  display: none;
+}
+
+/* ====== Mobile Responsive ====== */
 @media (max-width: 768px) {
+  /* Sidebar: off-screen overlay drawer */
   .app-sidebar {
-    width: var(--sidebar-collapsed);
+    width: var(--sidebar-width);
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 30;
+    box-shadow: none;
   }
-  .app-sidebar .sidebar-link span {
+
+  .app-sidebar.mobile-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .app-sidebar.collapsed {
+    width: var(--sidebar-width);
+    transform: translateX(-100%);
+  }
+
+  .app-sidebar.collapsed.mobile-open {
+    transform: translateX(0);
+  }
+
+  /* Always show nav labels in mobile drawer */
+  .collapsed .sidebar-link span {
+    display: inline;
+  }
+
+  /* Hide desktop collapse toggle on mobile */
+  .sidebar-toggle {
     display: none;
   }
-  .app-main {
-    margin-left: var(--sidebar-collapsed);
+
+  /* Touch-friendly nav links */
+  .sidebar-link {
+    padding: 14px 16px;
+    font-size: 14px;
+  }
+
+  /* Backdrop overlay when drawer is open */
+  .mobile-overlay {
+    position: fixed;
+    inset: 0;
+    top: var(--header-height);
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 25;
+  }
+
+  .mobile-overlay.visible {
+    display: block;
+  }
+
+  /* Main content: full width, tighter padding */
+  .app-main,
+  .app-main.sidebar-collapsed {
+    margin-left: 0 !important;
+    padding: 14px;
+  }
+
+  /* Header: compact on mobile */
+  .app-header h1 {
+    display: none;
+  }
+
+  .user-name {
+    display: none !important;
+  }
+
+  /* Page headers */
+  .page-header h2 {
+    font-size: 18px;
+  }
+
+  .page-header p {
+    font-size: 13px;
+  }
+
+  /* Dashboard cards: 2-column grid */
+  .dashboard-cards {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+  }
+
+  .dash-card {
+    padding: 14px;
+  }
+
+  .dash-card .bp5-icon {
+    margin-bottom: 4px;
+  }
+
+  .dash-card h3 {
+    font-size: 13px;
+  }
+
+  /* Tables: horizontal scroll */
+  .staff-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .staff-table-container .bp5-html-table {
+    min-width: 600px;
+  }
+
+  /* Roster grid: touch scroll */
+  .roster-grid {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Form sections: tighter padding */
+  .form-section {
+    padding: 14px;
+  }
+
+  /* Dialogs: fit mobile viewport */
+  .bp5-dialog {
+    width: 92vw !important;
+    max-width: 520px !important;
+    margin: 16px auto;
+  }
+
+  /* Side-by-side fields in dialogs: stack vertically */
+  .dialog-row {
+    flex-direction: column !important;
+  }
+
+  /* Action button bars: wrap on mobile */
+  .action-bar {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+
+  /* Login card: tighter padding */
+  .login-card {
+    padding: 28px 20px;
   }
 }

@@ -223,7 +223,7 @@ export default function WeeklyAllocation() {
       )}
 
       {/* Date Range Picker */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+      <div className="action-bar" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
         <label style={{ fontWeight: 600 }}>Week:</label>
         <input
           type="date"
@@ -241,7 +241,7 @@ export default function WeeklyAllocation() {
       </div>
 
       {/* Action Buttons */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+      <div className="action-bar" style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
         <Button intent="primary" icon="floppy-disk" text="Save Allocation" loading={saving} onClick={handleSave} />
         <Button icon="document" text="Export DOCX" onClick={handleExport} />
         <Button

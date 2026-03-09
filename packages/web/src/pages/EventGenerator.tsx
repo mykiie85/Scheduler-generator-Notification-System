@@ -212,7 +212,7 @@ export default function EventGenerator() {
           <FormGroup label="Description">
             <TextArea fill value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Event details..." />
           </FormGroup>
-          <div style={{ display: 'flex', gap: 12 }}>
+          <div className="dialog-row" style={{ display: 'flex', gap: 12 }}>
             <FormGroup label="Date" style={{ flex: 1 }}>
               <InputGroup type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
             </FormGroup>

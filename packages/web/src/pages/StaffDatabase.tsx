@@ -117,7 +117,7 @@ export default function StaffDatabase() {
 
       {error && <Callout intent="danger" style={{ marginBottom: 12 }}>{error}</Callout>}
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+      <div className="action-bar" style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
         <InputGroup
           leftIcon="search"
           placeholder="Search by name, file no, or section..."
