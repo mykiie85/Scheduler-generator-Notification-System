@@ -30,7 +30,21 @@
       "Bash(npx tsx:*)",
       "Bash(npx vite)",
       "Bash(npx prisma generate:*)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(git check-ignore -v .env packages/api/.env)",
+      "Bash(git ls-tree -r HEAD --name-only)",
+      "Bash(while read rev)",
+      "Bash(do git ls-tree -r \"$rev\" --name-only)",
+      "Bash(break)",
+      "Bash(done)",
+      "Bash(git show --all:.env.example)",
+      "Bash(xargs -I {} git ls-tree -r {} --name-only)",
+      "Bash(pip install git-filter-repo)",
+      "Bash(git filter-repo --version)",
+      "Bash(git add README.md infra/docker-compose.yml packages/api/src/config.ts .env.example)",
+      "Bash(git add README.md infra/docker-compose.yml packages/api/src/config.ts .env.example .gitignore)",
+      "Bash(git commit:*)",
+      "Bash(git push origin main)"
     ]
   }
 }
