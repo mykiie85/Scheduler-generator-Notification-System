@@ -1,2 +1,5 @@
 packages:
   - "packages/*"
+
+overrides:
+  proxy-addr: 2.0.8
